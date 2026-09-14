@@ -1,0 +1,3 @@
+import { useEffect, useRef, useState } from 'react'
+import { useReducedMotion } from 'motion/react'
+export function CountUp({value,decimals=0}:{value:number;decimals?:number}){const reduced=useReducedMotion();const previous=useRef(value);const [shown,setShown]=useState(value);useEffect(()=>{if(reduced){setShown(value);previous.current=value;return}const from=previous.current;const start=performance.now();let frame=0;const tick=(now:number)=>{const p=Math.min(1,(now-start)/650);const eased=1-Math.pow(1-p,3);setShown(from+(value-from)*eased);if(p<1)frame=requestAnimationFrame(tick);else previous.current=value};frame=requestAnimationFrame(tick);return()=>cancelAnimationFrame(frame)},[value,reduced]);return <>{shown.toFixed(decimals)}</>}

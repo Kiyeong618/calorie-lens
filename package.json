@@ -1,0 +1,37 @@
+{
+  "name": "calorie-lens",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "@react-three/drei": "latest",
+    "@react-three/fiber": "latest",
+    "echarts": "latest",
+    "lucide-react": "latest",
+    "motion": "latest",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-router-dom": "latest",
+    "three": "0.182.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@types/three": "0.182.0",
+    "@eslint/js": "latest",
+    "autoprefixer": "latest",
+    "eslint": "latest",
+    "postcss": "latest",
+    "tailwindcss": "^3.4.17",
+    "typescript": "latest",
+    "typescript-eslint": "latest",
+    "vite": "latest"
+  }
+}
