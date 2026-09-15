@@ -303,6 +303,21 @@ export function ManualRecorder() {
             {total.carbs}克 · 脂肪 {total.fat}克
           </p>
         </div>
+        {!!foods.length && (
+          <div className="meal-mini-treemap" aria-label="当前一餐热量贡献预览">
+            {foods.map((food, index) => (
+              <i
+                key={food.id}
+                style={{
+                  width: `${(food.calories / Math.max(1, total.totalCalories)) * 100}%`,
+                }}
+                title={`${food.name} ${Math.round((food.calories / Math.max(1, total.totalCalories)) * 100)}%`}
+              >
+                <span>{index < 4 ? food.name : ""}</span>
+              </i>
+            ))}
+          </div>
+        )}
         <div className="meal-items">
           <AnimatePresence>
             {foods.map((food, index) => (

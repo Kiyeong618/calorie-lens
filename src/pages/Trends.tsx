@@ -1,18 +1,319 @@
-import { motion } from 'motion/react'
-import { EnergyRibbon } from '../components/TodayVisuals'
-import { EnergyRidgeline } from '../components/TrendVisuals'
-import { CalorieDeviationRibbon, CircularMealRhythm, FoodGalaxy, NutritionTernary } from '../components/visualizations/AnalyticVisuals'
-import { useAppUI } from '../context/AppUIContext'
-import { getMonthlyRecords, getWeeklyRecords } from '../data/selectors'
-import { useAppData } from '../hooks/useAppData'
-import type { DailyRecord } from '../types'
-import { todayKey } from '../utils'
-
-export function Trends(){const {records,target}=useAppData();const {selectedDate,setSelectedDate}=useAppUI();const fallback:DailyRecord={date:todayKey(),meals:[],totalCalories:0,protein:0,carbs:0,fat:0};const selected=records.find(record=>record.date===selectedDate)??records[records.length-1]??fallback;const week=getWeeklyRecords(records);const month=getMonthlyRecords(records);return <motion.div className="trends-page" initial={{opacity:0}} animate={{opacity:1}}><header className="trends-hero"><span>趋势 · 三十日数据探索空间</span><h1>时间，让饮食<br/>显现规律。</h1><p>点击日期或历史数据点，五种视觉会聚焦同一天。</p><div className="date-scrubber">{week.map(record=><button key={record.date} onClick={()=>setSelectedDate(record.date)} className={record.date===selected.date?'active':''}><span>{new Date(`${record.date}T12:00:00`).toLocaleDateString('zh-CN',{weekday:'short'})}</span><b>{record.date.slice(-2)}</b><i/></button>)}</div></header>
-  <section className="trend-chapter ridge-chapter"><header><span>01 / 七日能量地貌</span><h2>每一天，<br/>由四次进食塑形。</h2><p>每条山脊代表一天，四个局部峰依次对应早餐、午餐、晚餐和加餐；峰高来自真实餐次热量。</p></header><EnergyRidgeline records={records} target={target.targetCalories} selectedDate={selected.date} onSelect={setSelectedDate}/></section>
-  <section className="trend-chapter pulse-chapter"><header><span>02 / 三十日目标偏差带</span><h2>目标是中线，<br/>偏差成为波形。</h2><p>上方表示摄入高于目标，下方表示低于目标；它把稳定与异常放在同一尺度比较。</p></header><CalorieDeviationRibbon records={month} target={target.targetCalories}/></section>
-  <section className="trend-chapter ternary-chapter"><header><span>03 / 营养三角</span><h2>三种供能比例，<br/>决定一天落在哪里。</h2><p>不比较克数，而是使用蛋白质 ×4、碳水 ×4、脂肪 ×9 后的真实供能比例。</p></header><div className="linked-date"><strong>{Math.round(selected.totalCalories)}</strong><span>{selected.date.slice(5).replace('-','月')}日 · 千卡 · 一致性 {selected.consistencyScore??0}%</span></div><NutritionTernary record={selected} records={records} target={target} onSelect={setSelectedDate}/></section>
-  <section className="trend-chapter galaxy-chapter"><header><span>04 / 食物星图</span><h2>你经常吃的，<br/>散布在什么位置。</h2><p>位置表达营养密度，面积表达真实摄入量。它用于描述数据特征，不给食物贴“好”或“坏”的标签。</p></header><FoodGalaxy records={month}/></section>
-  <section className="trend-chapter clock-chapter"><header><span>05 / 饮食节律</span><h2>进食时间，<br/>围成一天的轨道。</h2><p>切换七日模式，可以观察晚餐是否推迟、加餐是否聚集在夜间。</p></header><CircularMealRhythm record={selected} records={records}/></section>
-  <section className="trend-chapter auxiliary-chapter"><header><span>辅助 / 能量流场</span><h2>餐次如何汇入今天，<br/>再靠近目标。</h2><p>Ribbon 宽度来自各餐真实热量，不使用标准 Sankey 布局。</p></header><EnergyRibbon record={selected} target={target.targetCalories}/></section>
-  </motion.div>}
+import { motion } from "motion/react";
+import type { ReactNode } from "react";
+import { FoodGalaxy } from "../components/visualizations/AnalyticVisuals";
+import {
+  CalorieBudgetStrip,
+  CumulativeIntakeChart,
+  FoodContributionTreemap,
+  MacroBullets,
+  MacroEnergyComposition,
+  MacroHeatmap,
+  MealDistributionBoxPlot,
+  MealRhythmPolar,
+  MonthlyDeviationChart,
+  WeeklyMealStack,
+  WeeklyTargetBand,
+} from "../components/visualizations/ObservationVisuals";
+import { useAppUI } from "../context/AppUIContext";
+import {
+  getDailyDeviation,
+  getDeviationSummary,
+  getEatingWindow,
+  getInsights,
+  getMonthlyRecords,
+  getWeeklyRecords,
+} from "../data/selectors";
+import { useAppData } from "../hooks/useAppData";
+import type { DailyRecord } from "../types";
+import { todayKey } from "../utils";
+function Module({
+  index,
+  title,
+  question,
+  children,
+  wide = false,
+}: {
+  index: string;
+  title: string;
+  question: string;
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <section className={`observation-module ${wide ? "wide" : ""}`}>
+      <header>
+        <span>{index}</span>
+        <h2>{title}</h2>
+        <p>{question}</p>
+      </header>
+      {children}
+    </section>
+  );
+}
+function Formula({
+  title,
+  symbolic,
+  values,
+  result,
+  note,
+}: {
+  title: string;
+  symbolic: string;
+  values: string;
+  result: string;
+  note?: string;
+}) {
+  return (
+    <details className="formula-panel">
+      <summary>
+        <span>{title}</span>
+        <b>怎么算的？</b>
+      </summary>
+      <div>
+        <code>{symbolic}</code>
+        <p>{values}</p>
+        <strong>{result}</strong>
+        {note && <small>{note}</small>}
+      </div>
+    </details>
+  );
+}
+export function Trends() {
+  const { records, target } = useAppData(),
+    { selectedDate, setSelectedDate } = useAppUI();
+  const fallback: DailyRecord = {
+    date: todayKey(),
+    meals: [],
+    totalCalories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+  };
+  const selected =
+      records.find((r) => r.date === selectedDate) ??
+    records[records.length - 1] ??
+      fallback,
+    week = getWeeklyRecords(records, selected.date),
+    month = getMonthlyRecords(records),
+    day = getDailyDeviation(selected, target.targetCalories),
+    window = getEatingWindow(selected),
+    summary = getDeviationSummary(records, target.targetCalories),
+    insights = getInsights(records, target);
+  let stable = 0;
+  for (const r of [...month].reverse()) {
+    if (
+      Math.abs(r.totalCalories - target.targetCalories) >
+      target.targetCalories * 0.1
+    )
+      break;
+    stable++;
+  }
+  return (
+    <motion.main
+      className="observation-room"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+    >
+      <header className="data-poster">
+        <span>数据观测室 · {selected.date.split("-").join(" / ")}</span>
+        <div>
+          <h1>{Math.round(selected.totalCalories)}</h1>
+          <b>
+            千卡
+            <br />
+            今日摄入
+          </b>
+        </div>
+        <aside>
+          <p>
+            目标 <strong>{target.targetCalories}</strong>
+          </p>
+          <p>
+            差值{" "}
+            <strong>
+              {day.deviation >= 0 ? "+" : ""}
+              {Math.round(day.deviation)}
+            </strong>
+          </p>
+          <p>
+            完成度{" "}
+            <strong>
+              {Math.round(
+                (selected.totalCalories / Math.max(1, target.targetCalories)) *
+                  100,
+              )}
+              %
+            </strong>
+          </p>
+          <p>
+            一致性 <strong>{day.consistency}%</strong>
+          </p>
+        </aside>
+        <nav>
+          {week.map((r) => (
+            <button
+              key={r.date}
+              className={r.date === selected.date ? "active" : ""}
+              onClick={() => setSelectedDate(r.date)}
+            >
+              <span>
+                {new Date(`${r.date}T12:00:00`).toLocaleDateString("zh-CN", {
+                  weekday: "short",
+                })}
+              </span>
+              <b>{r.date.slice(-2)}</b>
+            </button>
+          ))}
+        </nav>
+      </header>
+      <div className="observation-grid">
+        <Module
+          index="01"
+          title="今日能量预算"
+          question="今天到底还能吃多少？"
+          wide
+        >
+          <CalorieBudgetStrip
+            actual={selected.totalCalories}
+            target={target.targetCalories}
+          />
+          <Formula
+            title="剩余热量"
+            symbolic="每日目标 − 今日摄入"
+            values={`${target.targetCalories} − ${Math.round(selected.totalCalories)}`}
+            result={`${Math.round(target.targetCalories - selected.totalCalories)} 千卡`}
+          />
+        </Module>
+        <Module
+          index="02"
+          title="一日累计摄入"
+          question="热量如何在一天中逐餐累积？"
+        >
+          <CumulativeIntakeChart
+            record={selected}
+            target={target.targetCalories}
+          />
+        </Module>
+        <Module
+          index="03"
+          title="24 小时饮食节律"
+          question="今天吃得比自己的习惯早，还是晚？"
+        >
+          <div className="rhythm-wrap">
+            <MealRhythmPolar record={selected} records={week} />
+            <div>
+              <strong>
+                {Math.floor(window.minutes / 60)} 小时 {window.minutes % 60} 分
+              </strong>
+              <span>进食窗口</span>
+              <p>
+                首餐 {window.firstLabel}
+                <br />
+                末餐 {window.lastLabel}
+              </p>
+            </div>
+          </div>
+        </Module>
+        <Module
+          index="04"
+          title="三大营养素目标轨"
+          question="今天与目标、七日范围分别处于哪里？"
+          wide
+        >
+          <MacroBullets record={selected} records={week} target={target} />
+          <MacroEnergyComposition record={selected} />
+        </Module>
+        <Module
+          index="05"
+          title="食物密度散点"
+          question="食物具有怎样的热量与蛋白质密度？"
+        >
+          <FoodGalaxy records={[selected]} />
+        </Module>
+        <Module
+          index="06"
+          title="食物热量贡献"
+          question="今天的热量主要来自哪些食物？"
+        >
+          <FoodContributionTreemap record={selected} />
+        </Module>
+        <Module
+          index="07"
+          title="七日目标带"
+          question="实际摄入何时偏离目标 ±10%？"
+          wide
+        >
+          <WeeklyTargetBand
+            records={records}
+            target={target.targetCalories}
+            selectedDate={selected.date}
+            onSelect={setSelectedDate}
+          />
+          <WeeklyMealStack records={week} target={target.targetCalories} />
+        </Module>
+        <Module
+          index="08"
+          title="三十日目标偏差"
+          question="一个月中稳定与异常发生在哪里？"
+          wide
+        >
+          <MonthlyDeviationChart
+            records={month}
+            target={target.targetCalories}
+          />
+          <div className="deviation-stats">
+            <span>
+              <b>
+                {summary.average >= 0 ? "+" : ""}
+                {summary.average}
+              </b>
+              平均偏差
+            </span>
+            <span>
+              <b>{summary.within}</b>目标范围内天数
+            </span>
+            <span>
+              <b>+{summary.maximum}</b>最大超出
+            </span>
+            <span>
+              <b>{summary.minimum}</b>最大不足
+            </span>
+            <span>
+              <b>{stable}</b>当前连续稳定天数
+            </span>
+          </div>
+          <Formula
+            title="一致性分数"
+            symbolic="max(0, 1 − |实际 − 目标| ÷ 目标) × 100"
+            values={`|${Math.round(selected.totalCalories)} − ${target.targetCalories}| ÷ ${target.targetCalories}`}
+            result={`${day.consistency}%`}
+            note="这是目标接近度，用于可视化展示，不是医学指标。"
+          />
+        </Module>
+        <Module
+          index="09"
+          title="一周营养热图"
+          question="哪几天的宏量营养明显偏离目标？"
+        >
+          <MacroHeatmap records={week} target={target} />
+        </Module>
+        <Module
+          index="10"
+          title="餐次热量分布"
+          question="过去 30 天真正容易吃多的是哪一餐？"
+        >
+          <MealDistributionBoxPlot records={month} />
+        </Module>
+        <section className="insight-panel">
+          <span>自动观察</span>
+          {insights.map((text, index) => (
+            <p key={text}>
+              <b>0{index + 1}</b>
+              {text}
+            </p>
+          ))}
+        </section>
+      </div>
+    </motion.main>
+  );
+}

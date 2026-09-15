@@ -1,28 +1,372 @@
-import { Canvas, useFrame } from '@react-three/fiber'
-import { Line, Sparkles } from '@react-three/drei'
-import { useMemo, useRef, type CSSProperties } from 'react'
-import { Color, Group, MathUtils, Vector3 } from 'three'
-import type { DailyRecord, NutritionTarget } from '../../types'
-import { getFoodDistribution, getMacroEnergyRatio, getMealDistribution, getMonthlyRecords, getWeeklyRecords } from '../../data/selectors'
-
-const macroColors=['#e76f51','#7167d9','#ead06f']
-const mealColors=['#c9a978','#e76f51','#7167d9','#87a7a0']
-const clamp=(value:number,min=0,max=1)=>Math.max(min,Math.min(max,value))
-const windowed=(progress:number,start:number,end:number)=>clamp((progress-start)/(end-start))
-
-function GlassPlate({ratio,opacity=1}:{ratio:number;opacity?:number}){return <group rotation={[Math.PI/2,0,0]}><mesh><cylinderGeometry args={[2.05,2.05,.18,96]}/><meshPhysicalMaterial color="#dce7df" transparent opacity={.14*opacity} transmission={.88} roughness={.08} thickness={2.4} ior={1.35} clearcoat={1}/></mesh><mesh position={[0,.015,0]} scale={[1,Math.max(.02,clamp(ratio,0,1.15)),1]}><cylinderGeometry args={[1.72,1.72,.08,96]}/><meshPhysicalMaterial color={ratio>1?'#e8a36f':'#92b9a5'} transparent opacity={.38*opacity} transmission={.3} roughness={.28} emissive={ratio>1?'#7d3828':'#264d40'} emissiveIntensity={.16}/></mesh><mesh><torusGeometry args={[2.04,.045,12,96]}/><meshPhysicalMaterial color="#eeeade" transparent opacity={.72*opacity} transmission={.45} roughness={.12}/></mesh></group>}
-
-function MealLayers({record,amount}:{record:DailyRecord;amount:number}){const data=getMealDistribution(record).filter(item=>item.calories>0);const total=Math.max(1,record.totalCalories);return <group>{data.map((item,index)=>{const share=item.calories/total;const z=(index-(data.length-1)/2)*(1.05*amount);return <mesh key={item.type} position={[0,0,z]} rotation={[Math.PI/2,0,index*.08]} scale={[.94,.94,1]}><cylinderGeometry args={[1.82,1.82,.08+share*.42,72]}/><meshPhysicalMaterial color={mealColors[index]} transparent opacity={.16+amount*.34} transmission={.55} roughness={.18} thickness={1}/></mesh>})}</group>}
-
-function FoodFragments({record,amount}:{record:DailyRecord;amount:number}){const meal=[...record.meals].sort((a,b)=>b.totalCalories-a.totalCalories)[0];const foods=getFoodDistribution(meal?{...record,meals:[meal]}:record).slice(0,8);const total=Math.max(1,meal?.totalCalories??record.totalCalories);return <group rotation={[.18,-.2,0]}>{foods.map((food,index)=>{const angle=index/Math.max(1,foods.length)*Math.PI*2;const radius=.45+amount*(1.25+index%2*.35);const share=food.calories/total;return <mesh key={food.id} position={[Math.cos(angle)*radius,Math.sin(angle)*radius,(index%3-1)*.32*amount]} rotation={[angle*.3,angle,-angle*.2]} scale={[.45+share*1.7,.32+share*1.2,.12+share*.55]}><icosahedronGeometry args={[1,2]}/><meshPhysicalMaterial color={mealColors[index%mealColors.length]} transparent opacity={amount*.78} roughness={.38} transmission={.18}/></mesh>})}</group>}
-
-function NutrientRibbons({record,amount}:{record:DailyRecord;amount:number}){const macro=getMacroEnergyRatio(record);const shares=[macro.proteinRatio,macro.carbsRatio,macro.fatRatio];return <group rotation={[amount*.35,0,0]}>{shares.map((share,index)=><mesh key={index} rotation={[[1.15,.1,.2],[.35,1,-.4],[-.45,.65,.8]][index] as [number,number,number]} scale={[1,1,1]}><torusGeometry args={[2.25+index*.22,.025+share*.16,10,110,Math.PI*(1.25+amount*.75)]}/><meshPhysicalMaterial color={macroColors[index]} transparent opacity={amount*(.38+share*.5)} transmission={.35} roughness={.28} side={2}/></mesh>)}</group>}
-
-function WeeklyLandscape({records,target,amount}:{records:DailyRecord[];target:number;amount:number}){const week=getWeeklyRecords(records);return <group position={[0,-.4,-1.4]} rotation={[1.05,0,0]}>{week.map((record,index)=>{const ratio=record.totalCalories/target;return <mesh key={record.date} position={[(index-3)*.78,(ratio-.85)*1.4,(index-3)*-.32*amount]} scale={[.62,.62,.45+Math.abs(ratio-1)*1.5]}><cylinderGeometry args={[.46,.46,.12,32]}/><meshPhysicalMaterial color={ratio>1?'#d9795d':'#7770c8'} transparent opacity={amount*(.14+record.consistencyScore!*.005)} transmission={.5} roughness={.26}/></mesh>})}</group>}
-
-function MonthlyRing({records,target,amount}:{records:DailyRecord[];target:number;amount:number}){const month=getMonthlyRecords(records);return <group rotation={[.9,0,0]}>{month.map((record,index)=>{const angle=index/month.length*Math.PI*2;const radius=3.15;const ratio=record.totalCalories/target;const consistency=(record.consistencyScore??0)/100;return <mesh key={record.date} position={[Math.cos(angle)*radius*amount,Math.sin(angle)*radius*amount,(1-amount)*-7]} rotation={[Math.PI/2,0,angle]} scale={[.34,.34,.2+Math.abs(ratio-1)*.9]}><cylinderGeometry args={[1,1,.25,32]}/><meshPhysicalMaterial color={ratio>1?'#d9795d':'#889d91'} transparent opacity={amount*(.12+consistency*.42)} transmission={.65} roughness={.18}/></mesh>})}</group>}
-
-function Scene({progress,record,records,target,reduced}:{progress:number;record:DailyRecord;records:DailyRecord[];target:NutritionTarget;reduced:boolean}){const root=useRef<Group>(null);const lens=useRef<Group>(null);const pointer=useRef({x:0,y:0});const ratio=target.targetCalories?record.totalCalories/target.targetCalories:0;const explode=windowed(progress,.19,.32)*(1-windowed(progress,.37,.48));const fragments=windowed(progress,.34,.47)*(1-windowed(progress,.54,.64));const ribbons=windowed(progress,.48,.61)*(1-windowed(progress,.68,.78));const weekly=windowed(progress,.66,.77)*(1-windowed(progress,.82,.91));const monthly=windowed(progress,.82,.96);const plateFade=1-windowed(progress,.68,.85);const points=useMemo(()=>Array.from({length:65},(_,i)=>new Vector3(Math.cos(i/64*Math.PI*2)*2.62,Math.sin(i/64*Math.PI*2)*2.62,0)),[]);useFrame((state,delta)=>{if(document.hidden||!root.current||!lens.current)return;pointer.current.x=MathUtils.lerp(pointer.current.x,state.pointer.x,.035);pointer.current.y=MathUtils.lerp(pointer.current.y,state.pointer.y,.035);const p=reduced?0:progress;root.current.rotation.y=MathUtils.lerp(root.current.rotation.y,pointer.current.x*.09+p*.5,.045);root.current.rotation.x=MathUtils.lerp(root.current.rotation.x,-pointer.current.y*.055,.045);lens.current.rotation.x=MathUtils.lerp(lens.current.rotation.x,p<.18?0:.28+p*.65,.04);lens.current.position.z=MathUtils.lerp(lens.current.position.z,p<.2?0:-.5,.04);root.current.rotation.z+=reduced?0:delta*.006});return <group ref={root}><ambientLight intensity={1.25}/><directionalLight position={[4,5,6]} intensity={4.5} color="#fff2d8"/><pointLight position={[-4,-2,4]} intensity={8} color="#7770c8"/><group ref={lens}><GlassPlate ratio={ratio} opacity={plateFade}/><MealLayers record={record} amount={explode}/><FoodFragments record={record} amount={fragments}/><NutrientRibbons record={record} amount={ribbons}/></group><WeeklyLandscape records={records} target={target.targetCalories} amount={weekly}/><MonthlyRing records={records} target={target.targetCalories} amount={monthly}/><Line points={points} color="#f2eee2" transparent opacity={.15*(1-monthly)} lineWidth={1}/><Sparkles count={reduced?0:innerWidth<700?260:900} scale={8} size={.8} speed={.08} color={new Color('#d8d4c8')} opacity={.2} noise={1.4}/></group>}
-
-function StaticLens({ratio}:{ratio:number}){return <div className="static-lens" style={{'--fill':`${Math.min(100,ratio*100)}%`} as CSSProperties}><i/><span/></div>}
-export function ImmersiveScene({progress,record,records,target,reduced=false}:{progress:number;record:DailyRecord;records:DailyRecord[];target:NutritionTarget;reduced?:boolean}){const ratio=target.targetCalories?record.totalCalories/target.targetCalories:0;const mobile=typeof window!=='undefined'&&window.innerWidth<700;if(mobile)return <div className="immersive-canvas mobile-static" aria-hidden="true"><StaticLens ratio={ratio}/></div>;return <div className="immersive-canvas" aria-hidden="true"><Canvas fallback={<StaticLens ratio={ratio}/>} dpr={[1,Math.min(1.75,window.devicePixelRatio)]} camera={{position:[0,0,7.4],fov:42}} gl={{alpha:true,antialias:true,powerPreference:'high-performance'}}><Scene progress={progress} record={record} records={records} target={target} reduced={reduced}/></Canvas></div>}
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Float, Line, Sparkles } from "@react-three/drei";
+import { useMemo, useRef, type CSSProperties } from "react";
+import { Color, Group, MathUtils, PerspectiveCamera, Vector3 } from "three";
+import type { DailyRecord, MealType, NutritionTarget } from "../../types";
+import {
+  getFoodDistribution,
+  getMacroEnergyRatio,
+  getMealDistribution,
+  getMealTimes,
+  getMonthlyRecords,
+} from "../../data/selectors";
+import {
+  cameraPositionCurve,
+  cameraTargetCurve,
+  getFov,
+} from "./cameraTimeline";
+const mealColors = ["#e8b86c", "#e76f51", "#7167d9", "#7ca59b"],
+  macroColors = ["#f06445", "#7167e8", "#e6c941"];
+const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v)),
+  phase = (p: number, a: number, b: number) => clamp((p - a) / (b - a));
+function CameraRig({ progress }: { progress: number }) {
+  const { camera, pointer } = useThree();
+  const target = useMemo(() => new Vector3(), []);
+  useFrame(() => {
+    const p = clamp(progress),
+      pos = cameraPositionCurve.getPointAt(p);
+    cameraTargetCurve.getPointAt(p, target);
+    camera.position.lerp(
+      pos.add(new Vector3(pointer.x * 0.08, pointer.y * 0.05, 0)),
+      0.075,
+    );
+    camera.lookAt(target);
+    const perspective = camera as PerspectiveCamera;
+    perspective.fov = MathUtils.lerp(perspective.fov, getFov(p), 0.06);
+    perspective.updateProjectionMatrix();
+  });
+  return null;
+}
+function Lens({ ratio }: { ratio: number }) {
+  return (
+    <group rotation={[Math.PI / 2, 0, 0]}>
+      <mesh>
+        <torusGeometry args={[2.05, 0.31, 32, 120]} />
+        <meshPhysicalMaterial
+          color="#e9eee8"
+          transparent
+          opacity={0.26}
+          transmission={0.9}
+          roughness={0.06}
+          thickness={2.2}
+          ior={1.4}
+        />
+      </mesh>
+      <mesh scale={[1, 1, Math.max(0.1, clamp(ratio, 0, 1.2))]}>
+        <cylinderGeometry args={[1.82, 1.82, 0.32, 96]} />
+        <meshPhysicalMaterial
+          color={ratio > 1 ? "#e76f51" : "#c9ff24"}
+          transparent
+          opacity={0.2}
+          transmission={0.72}
+          roughness={0.18}
+        />
+      </mesh>
+    </group>
+  );
+}
+function MealShape({
+  type,
+  index,
+  scale,
+}: {
+  type: MealType;
+  index: number;
+  scale: number;
+}) {
+  return (
+    <mesh scale={scale}>
+      {type === "breakfast" ? (
+        <sphereGeometry args={[0.6, 32, 20]} />
+      ) : type === "lunch" ? (
+        <icosahedronGeometry args={[0.68, 3]} />
+      ) : type === "dinner" ? (
+        <torusKnotGeometry args={[0.43, 0.17, 72, 12, 2, 3]} />
+      ) : (
+        <capsuleGeometry args={[0.38, 0.65, 8, 20]} />
+      )}
+      <meshPhysicalMaterial
+        color={mealColors[index]}
+        transparent
+        opacity={0.64}
+        transmission={0.28}
+        roughness={0.3}
+      />
+    </mesh>
+  );
+}
+function MealOrbit({
+  record,
+  visible,
+}: {
+  record: DailyRecord;
+  visible: number;
+}) {
+  const times = getMealTimes(record),
+    dist = getMealDistribution(record),
+    total = Math.max(1, record.totalCalories);
+  return (
+    <group position={[0, 0, -4.8]} scale={visible}>
+      {dist
+        .filter((d) => d.calories > 0)
+        .map((meal, index) => {
+          const minutes =
+              times.find((t) => t.type === meal.type)?.minutes ??
+              (index + 2) * 240,
+            angle = (minutes / 1440) * Math.PI * 2,
+            radius = 2.5 + (meal.calories / total - 0.25) * 1.2;
+          return (
+            <Float key={meal.type} speed={0.5} floatIntensity={0.08}>
+              <group
+                position={[
+                  Math.sin(angle) * radius,
+                  Math.cos(angle) * radius,
+                  Math.sin(angle * 0.5) * 0.6,
+                ]}
+              >
+                <MealShape
+                  type={meal.type}
+                  index={index}
+                  scale={0.5 + (meal.calories / total) * 1.5}
+                />
+              </group>
+            </Float>
+          );
+        })}
+      <Line
+        points={Array.from(
+          { length: 65 },
+          (_, i) =>
+            new Vector3(
+              Math.sin((i / 64) * Math.PI * 2) * 2.5,
+              Math.cos((i / 64) * Math.PI * 2) * 2.5,
+              0,
+            ),
+        )}
+        color="#f0eee6"
+        transparent
+        opacity={0.16}
+      />
+    </group>
+  );
+}
+function FoodCells({
+  record,
+  visible,
+}: {
+  record: DailyRecord;
+  visible: number;
+}) {
+  const meal = [...record.meals].sort(
+      (a, b) => b.totalCalories - a.totalCalories,
+    )[0],
+    foods = getFoodDistribution(
+      meal ? { ...record, meals: [meal] } : record,
+    ).slice(0, 9),
+    total = Math.max(1, meal?.totalCalories ?? 1);
+  return (
+    <group position={[0, 0, -9.8]} scale={visible}>
+      {foods.map((food, index) => {
+        const a = (index / Math.max(1, foods.length)) * Math.PI * 2;
+        return (
+          <mesh
+            key={food.id}
+            position={[
+              Math.cos(a) * (1.1 + (index % 3) * 0.45),
+              Math.sin(a) * (1.1 + (index % 3) * 0.45),
+              (index % 2) * 1.3,
+            ]}
+            scale={0.25 + Math.sqrt(food.calories / total)}
+          >
+            <icosahedronGeometry args={[1, 2]} />
+            <meshPhysicalMaterial
+              color={mealColors[index % 4]}
+              transparent
+              opacity={0.75}
+              transmission={0.18}
+              roughness={0.35}
+            />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+function Ribbons({
+  record,
+  visible,
+  flat,
+}: {
+  record: DailyRecord;
+  visible: number;
+  flat: number;
+}) {
+  const macro = getMacroEnergyRatio(record),
+    shares = [macro.proteinRatio, macro.carbsRatio, macro.fatRatio];
+  return (
+    <group position={[0, 0, -14]} scale={[1, 1, 1 - flat * 0.94]}>
+      {shares.map((share, index) => (
+        <mesh
+          key={index}
+          position={[0, (index - 1) * 1.15, 0]}
+          rotation={[0, 0, index * 0.12 - 0.1]}
+          scale={[visible, 1, 1]}
+        >
+          <boxGeometry args={[8, 0.18 + share * 0.72, 0.16]} />
+          <meshPhysicalMaterial
+            color={macroColors[index]}
+            transparent
+            opacity={0.72}
+            transmission={0.2}
+            roughness={0.25}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+function TimeSpiral({
+  records,
+  target,
+  visible,
+}: {
+  records: DailyRecord[];
+  target: number;
+  visible: number;
+}) {
+  return (
+    <group position={[0, 0, -20]} scale={visible}>
+      {getMonthlyRecords(records).map((record, index) => {
+        const t = index / 29,
+          a = t * Math.PI * 5,
+          r = 1.2 + t * 4.2,
+          ratio = record.totalCalories / Math.max(1, target);
+        return (
+          <mesh
+            key={record.date}
+            position={[Math.cos(a) * r, Math.sin(a) * r, -t * 10]}
+            rotation={[Math.PI / 2, a, 0]}
+            scale={0.22 + (1 - t) * 0.24}
+          >
+            <cylinderGeometry args={[1, 1, 0.18 + Math.abs(ratio - 1), 28]} />
+            <meshPhysicalMaterial
+              color={ratio > 1 ? "#e76f51" : "#9fb3aa"}
+              transparent
+              opacity={0.22 + (record.consistencyScore ?? 70) / 150}
+              transmission={0.58}
+              roughness={0.2}
+            />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+function World({
+  progress,
+  record,
+  records,
+  target,
+}: {
+  progress: number;
+  record: DailyRecord;
+  records: DailyRecord[];
+  target: NutritionTarget;
+}) {
+  const root = useRef<Group>(null),
+    ratio = record.totalCalories / Math.max(1, target.targetCalories);
+  useFrame((_, delta) => {
+    if (root.current) root.current.rotation.z += delta * 0.002;
+  });
+  return (
+    <>
+      <CameraRig progress={progress} />
+      <fog attach="fog" args={["#0e0e0c", 9, 34]} />
+      <ambientLight intensity={1.2} />
+      <directionalLight position={[4, 6, 6]} intensity={5} />
+      <pointLight position={[-4, 1, -4]} intensity={10} color="#7167d9" />
+      <group ref={root}>
+        <Lens ratio={ratio} />
+        <MealOrbit record={record} visible={phase(progress, 0.25, 0.37)} />
+        <FoodCells
+          record={record}
+          visible={
+            phase(progress, 0.53, 0.65) * (1 - phase(progress, 0.79, 0.86))
+          }
+        />
+        <Ribbons
+          record={record}
+          visible={phase(progress, 0.72, 0.82)}
+          flat={phase(progress, 0.86, 0.96)}
+        />
+        <TimeSpiral
+          records={records}
+          target={target.targetCalories}
+          visible={phase(progress, 0.93, 1)}
+        />
+        <Sparkles
+          count={innerWidth < 800 ? 300 : 950}
+          scale={[16, 12, 30]}
+          size={0.55}
+          speed={0.04}
+          color={new Color("#d9d5c9")}
+          opacity={0.13}
+        />
+      </group>
+    </>
+  );
+}
+function StaticLens({ ratio }: { ratio: number }) {
+  return (
+    <div
+      className="static-lens"
+      style={{ "--fill": `${Math.min(100, ratio * 100)}%` } as CSSProperties}
+    >
+      <i />
+      <span />
+    </div>
+  );
+}
+export function ImmersiveScene({
+  progress,
+  record,
+  records,
+  target,
+  reduced = false,
+}: {
+  progress: number;
+  record: DailyRecord;
+  records: DailyRecord[];
+  target: NutritionTarget;
+  reduced?: boolean;
+}) {
+  const ratio = record.totalCalories / Math.max(1, target.targetCalories),
+    mobile = typeof window !== "undefined" && window.innerWidth < 760;
+  if (mobile || reduced)
+    return (
+      <div className="immersive-canvas mobile-static" aria-hidden="true">
+        <StaticLens ratio={ratio} />
+      </div>
+    );
+  return (
+    <div className="immersive-canvas" aria-hidden="true">
+      <Canvas
+        fallback={<StaticLens ratio={ratio} />}
+        dpr={[1, Math.min(1.65, window.devicePixelRatio)]}
+        camera={{ position: [0, 0.3, 13], fov: 38, near: 0.08, far: 70 }}
+        gl={{
+          alpha: true,
+          antialias: true,
+          powerPreference: "high-performance",
+        }}
+      >
+        <World
+          progress={progress}
+          record={record}
+          records={records}
+          target={target}
+        />
+      </Canvas>
+    </div>
+  );
+}

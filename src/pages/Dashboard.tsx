@@ -1,38 +1,400 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUpRight, Edit3, Plus, Sparkles } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import { useReducedMotion } from 'motion/react'
-import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { CountUp } from '../components/CountUp'
-import { ImmersiveScene } from '../components/three/ImmersiveScene'
-import { consumeEnergyInjection } from '../data/store'
-import { getDeviationSummary, getFoodDistribution, getMacroEnergyRatio, getMealDistribution, getMonthlyRecords, getWeeklyRecords } from '../data/selectors'
-import { useAppData } from '../hooks/useAppData'
-import { useAppUI } from '../context/AppUIContext'
-import type { DailyRecord } from '../types'
-import { todayKey } from '../utils'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUpRight, Edit3, Plus, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useReducedMotion } from "motion/react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { CountUp } from "../components/CountUp";
+import { ImmersiveScene } from "../components/three/ImmersiveScene";
+import { consumeEnergyInjection } from "../data/store";
+import {
+  getDeviationSummary,
+  getFoodDistribution,
+  getMacroEnergyRatio,
+  getMealDistribution,
+  getMonthlyRecords,
+  getWeeklyRecords,
+} from "../data/selectors";
+import { useAppData } from "../hooks/useAppData";
+import { useAppUI } from "../context/AppUIContext";
+import type { DailyRecord } from "../types";
+import { todayKey } from "../utils";
 
-gsap.registerPlugin(ScrollTrigger)
-const mealNames={breakfast:'早餐',lunch:'午餐',dinner:'晚餐',snack:'加餐'}
-const chapterNames=['透镜','今天','餐次','食物','营养素','能量平衡','七天','三十天']
+gsap.registerPlugin(ScrollTrigger);
+const mealNames = {
+  breakfast: "早餐",
+  lunch: "午餐",
+  dinner: "晚餐",
+  snack: "加餐",
+};
+const chapterNames = [
+  "远景推进",
+  "贴近擦过",
+  "穿越透镜",
+  "餐次揭示",
+  "环绕午餐",
+  "快速推进",
+  "进入食物",
+  "单元穿行",
+  "营养流带",
+  "升降俯拍",
+  "空间压平",
+  "时间远拉",
+];
 
-export function Dashboard(){
-  const {target,records}=useAppData();const {presentation}=useAppUI();const reduced=useReducedMotion()??false;const root=useRef<HTMLDivElement>(null);const empty:DailyRecord={date:todayKey(),meals:[],totalCalories:0,protein:0,carbs:0,fat:0};const today=records.find(record=>record.date===todayKey())??records[records.length-1]??empty;const [progress,setProgress]=useState(0);const [injection,setInjection]=useState(false);const remaining=target.targetCalories-today.totalCalories;const meals=getMealDistribution(today).filter(meal=>meal.calories>0);const foods=getFoodDistribution(today);const focusedMeal=[...today.meals].sort((a,b)=>b.totalCalories-a.totalCalories)[0];const focusedFoods=getFoodDistribution(focusedMeal?{...today,meals:[focusedMeal]}:today);const macro=getMacroEnergyRatio(today);const week=getWeeklyRecords(records);const month=getMonthlyRecords(records);const deviation=getDeviationSummary(records,target.targetCalories);const active=Math.min(7,Math.floor(progress*8));const weekAverage=Math.round(week.reduce((sum,r)=>sum+r.totalCalories,0)/Math.max(1,week.length));const monthConsistency=Math.round(month.reduce((sum,r)=>sum+(r.consistencyScore??0),0)/Math.max(1,month.length));
-  void foods
-  useLayoutEffect(()=>{if(!root.current||reduced){setProgress(0);return}const endTrigger=root.current.querySelector('.scene-month') as HTMLElement;const trigger=ScrollTrigger.create({trigger:root.current,endTrigger,start:'top top',end:'bottom bottom',scrub:.35,onUpdate:self=>setProgress(self.progress)});return()=>trigger.kill()},[reduced])
-  useEffect(()=>{if(consumeEnergyInjection()&&!reduced){setInjection(true);const id=setTimeout(()=>setInjection(false),1150);return()=>clearTimeout(id)}},[reduced])
-  useEffect(()=>{if(!presentation)return;document.documentElement.classList.add('guided-story');return()=>document.documentElement.classList.remove('guided-story')},[presentation])
-  const stageProgress=useMemo(()=>Math.round(progress*100),[progress]);
-  return <div className="immersive-home" ref={root}><ImmersiveScene progress={progress} record={today} records={records} target={target} reduced={reduced}/><div className="story-progress"><span>{String(active+1).padStart(2,'0')} / 08</span><div><i style={{height:`${stageProgress}%`}}/></div><b>{chapterNames[active]}</b></div>
-    <section className="story-scene scene-opening"><div className="story-grid"/><div className="scene-kicker">CalorieLens · 个人饮食能量可视化系统</div><h1>看见，<br/>你吃下的<br/><em>能量。</em></h1><p>一只由真实饮食数据生成的能量餐盘。</p><a href="#scene-today"><ArrowDown/>滚动进入数据</a>{injection&&<div className="lens-injection"><Sparkles/>新餐食正在进入能量透镜</div>}</section>
-    <section id="scene-today" className="story-scene scene-today"><div className="scene-copy left"><span>02 / 今天</span><h2>一个圆，<br/>装下今天。</h2><p>透镜内部填充来自「今日摄入 ÷ 每日目标」，倾斜后可以看见偏差的厚度。</p></div><div className="scene-data right"><span>今日已摄入</span><strong><CountUp value={today.totalCalories}/><small> 千卡</small></strong><div><b>{target.targetCalories}</b><span>今日目标 · 千卡</span></div><div><b>{Math.abs(Math.round(remaining))}</b><span>{remaining>=0?'还可以摄入':'已经超出'} · 千卡</span></div></div></section>
-    <section className="story-scene scene-meals"><div className="scene-copy left"><span>03 / 一日餐次</span><h2>一天，<br/>沿深度展开。</h2><p>每层只在当天存在对应餐次时生成；厚度按该餐占全天热量比例映射。</p></div><div className="meal-labels right">{meals.map(meal=><article key={meal.type}><span>{mealNames[meal.type]}</span><strong>{Math.round(meal.calories)}<small> 千卡</small></strong><i>{Math.round(meal.calories/Math.max(1,today.totalCalories)*100)}%</i></article>)}</div></section>
-    <section className="story-scene scene-food"><div className="scene-copy right"><span>04 / 食物</span><h2>{focusedMeal?mealNames[focusedMeal.type]:'这一餐'}，<br/>继续解构。</h2><p>片段体积来自食物热量占本餐比例。面积不是装饰，而是热量贡献。</p></div><div className="food-labels left">{focusedFoods.slice(0,6).map(food=><article key={food.id}><span>{food.name}</span><strong>{Math.round(food.calories)} 千卡</strong><i>{Math.round(food.calories/Math.max(1,focusedMeal?.totalCalories??today.totalCalories)*100)}%</i></article>)}</div></section>
-    <section className="story-scene scene-macros"><div className="scene-copy left"><span>05 / 营养素</span><h2>食物溶解成<br/>三条营养流。</h2><p>宽度使用供能比例，而不是克数比例：蛋白质与碳水 × 4，脂肪 × 9。</p></div><div className="macro-labels right"><article><i className="protein"/><span>蛋白质</span><strong>{Math.round(macro.proteinRatio*100)}%</strong><small>{Math.round(today.protein)} / {target.proteinTarget} 克</small></article><article><i className="carbs"/><span>碳水</span><strong>{Math.round(macro.carbsRatio*100)}%</strong><small>{Math.round(today.carbs)} / {target.carbTarget} 克</small></article><article><i className="fat"/><span>脂肪</span><strong>{Math.round(macro.fatRatio*100)}%</strong><small>{Math.round(today.fat)} / {target.fatTarget} 克</small></article></div></section>
-    <section className="story-scene scene-balance"><div className="balance-center"><span>06 / 能量平衡</span><strong>{Math.round(today.totalCalories)}</strong><small>今日摄入 · 千卡</small><i/><b>{target.targetCalories}</b><small>每日目标 · 千卡</small><p>{remaining>=0?`距离目标还有 ${Math.round(remaining)} 千卡。`:`比目标高出 ${Math.abs(Math.round(remaining))} 千卡。`}</p><Link to="/record"><Plus/>记录这一餐</Link></div></section>
-    <section className="story-scene scene-week"><div className="scene-copy right"><span>07 / 过去七天</span><h2>七只餐盘，<br/>成为一段地貌。</h2><p>圆盘高度与每日偏差相关，亮度由一致性生成。</p></div><div className="week-summary left"><strong>{weekAverage}</strong><span>七日平均 · 千卡</span><b>{week.filter(record=>record.totalCalories>target.targetCalories).length} 天</b><span>高于每日目标</span><Link to="/trends">进入趋势空间 <ArrowUpRight/></Link></div></section>
-    <section className="story-scene scene-month"><div className="month-ending"><span>08 / 三十天</span><h2>时间围成一圈，<br/>习惯开始显形。</h2><div><article><strong>{monthConsistency}%</strong><span>月度平均一致性</span></article><article><strong>{deviation.within}</strong><span>天落在目标 ±10%</span></article><article><strong>{deviation.average>=0?'+':''}{deviation.average}</strong><span>平均偏差 · 千卡</span></article></div><p>每一个透明 Lens 代表一天；填充映射摄入比例，厚度映射偏差，亮度映射一致性。</p><Link to="/trends">探索完整三十天 <ArrowUpRight/></Link></div></section>
-    <section className="home-meal-log"><header><span>今天的可编辑记录</span><h2>数据仍然可以<br/>被你改变。</h2></header>{today.meals.map(meal=><article key={meal.id}><time>{new Date(meal.timestamp).toTimeString().slice(0,5)}</time><div><span>{mealNames[meal.type]}</span><h3>{meal.foods.map(food=>food.name).join('、')}</h3></div><strong>{Math.round(meal.totalCalories)}<small> 千卡</small></strong><Link to={`/record?meal=${meal.id}`} aria-label={`编辑${mealNames[meal.type]}`}><Edit3/></Link></article>)}<Link className="add-from-home" to="/record"><Plus/>新增餐食</Link></section>
-    <footer className="immersive-footer"><b>CalorieLens</b><span>数据用于课程展示，不构成专业营养建议。</span><Link to="/trends">时间，让饮食显现规律。 <ArrowUpRight/></Link></footer>
-  </div>}
+export function Dashboard() {
+  const { target, records } = useAppData();
+  const { presentation } = useAppUI();
+  const reduced = useReducedMotion() ?? false;
+  const root = useRef<HTMLDivElement>(null);
+  const empty: DailyRecord = {
+    date: todayKey(),
+    meals: [],
+    totalCalories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+  };
+  const today =
+    records.find((record) => record.date === todayKey()) ??
+    records[records.length - 1] ??
+    empty;
+  const [progress, setProgress] = useState(0);
+  const [injection, setInjection] = useState(false);
+  const remaining = target.targetCalories - today.totalCalories;
+  const meals = getMealDistribution(today).filter((meal) => meal.calories > 0);
+  const foods = getFoodDistribution(today);
+  const focusedMeal = [...today.meals].sort(
+    (a, b) => b.totalCalories - a.totalCalories,
+  )[0];
+  const focusedFoods = getFoodDistribution(
+    focusedMeal ? { ...today, meals: [focusedMeal] } : today,
+  );
+  const macro = getMacroEnergyRatio(today);
+  const week = getWeeklyRecords(records);
+  const month = getMonthlyRecords(records);
+  const deviation = getDeviationSummary(records, target.targetCalories);
+  const active = Math.min(11, Math.floor(progress * 12));
+  const weekAverage = Math.round(
+    week.reduce((sum, r) => sum + r.totalCalories, 0) /
+      Math.max(1, week.length),
+  );
+  const monthConsistency = Math.round(
+    month.reduce((sum, r) => sum + (r.consistencyScore ?? 0), 0) /
+      Math.max(1, month.length),
+  );
+  void foods;
+  useLayoutEffect(() => {
+    if (!root.current || reduced) {
+      setProgress(0);
+      return;
+    }
+    const endTrigger = root.current.querySelector(
+      ".scene-month",
+    ) as HTMLElement;
+    const trigger = ScrollTrigger.create({
+      trigger: root.current,
+      endTrigger,
+      start: "top top",
+      end: "bottom bottom",
+      scrub: 0.35,
+      onUpdate: (self) => setProgress(self.progress),
+    });
+    return () => trigger.kill();
+  }, [reduced]);
+  useEffect(() => {
+    if (consumeEnergyInjection() && !reduced) {
+      setInjection(true);
+      const id = setTimeout(() => setInjection(false), 1150);
+      return () => clearTimeout(id);
+    }
+  }, [reduced]);
+  useEffect(() => {
+    if (!presentation) return;
+    document.documentElement.classList.add("guided-story");
+    return () => document.documentElement.classList.remove("guided-story");
+  }, [presentation]);
+  const stageProgress = useMemo(() => Math.round(progress * 100), [progress]);
+  return (
+    <div className="immersive-home" ref={root}>
+      <ImmersiveScene
+        progress={progress}
+        record={today}
+        records={records}
+        target={target}
+        reduced={reduced}
+      />
+      <div className="story-progress">
+        <span>{String(active + 1).padStart(2, "0")} / 12</span>
+        <div>
+          <i style={{ height: `${stageProgress}%` }} />
+        </div>
+        <b>{chapterNames[active]}</b>
+      </div>
+      <section className="story-scene scene-opening">
+        <div className="story-grid" />
+        <div className="scene-kicker">CalorieLens · 个人饮食能量可视化系统</div>
+        <h1>
+          看见，
+          <br />
+          你吃下的
+          <br />
+          <em>能量。</em>
+        </h1>
+        <p>一只由真实饮食数据生成的能量餐盘。</p>
+        <a href="#scene-today">
+          <ArrowDown />
+          滚动进入数据
+        </a>
+        {injection && (
+          <div className="lens-injection">
+            <Sparkles />
+            新餐食正在进入能量透镜
+          </div>
+        )}
+      </section>
+      <section id="scene-today" className="story-scene scene-today">
+        <div className="scene-copy left">
+          <span>02 / 今天</span>
+          <h2>
+            一个圆，
+            <br />
+            装下今天。
+          </h2>
+          <p>
+            透镜内部填充来自「今日摄入 ÷ 每日目标」，倾斜后可以看见偏差的厚度。
+          </p>
+        </div>
+        <div className="scene-data right">
+          <span>今日已摄入</span>
+          <strong>
+            <CountUp value={today.totalCalories} />
+            <small> 千卡</small>
+          </strong>
+          <div>
+            <b>{target.targetCalories}</b>
+            <span>今日目标 · 千卡</span>
+          </div>
+          <div>
+            <b>{Math.abs(Math.round(remaining))}</b>
+            <span>{remaining >= 0 ? "还可以摄入" : "已经超出"} · 千卡</span>
+          </div>
+        </div>
+      </section>
+      <section className="story-scene scene-meals">
+        <div className="scene-copy left">
+          <span>03 / 一日餐次</span>
+          <h2>
+            一天，
+            <br />
+            沿深度展开。
+          </h2>
+          <p>每层只在当天存在对应餐次时生成；厚度按该餐占全天热量比例映射。</p>
+        </div>
+        <div className="meal-labels right">
+          {meals.map((meal) => (
+            <article key={meal.type}>
+              <span>{mealNames[meal.type]}</span>
+              <strong>
+                {Math.round(meal.calories)}
+                <small> 千卡</small>
+              </strong>
+              <i>
+                {Math.round(
+                  (meal.calories / Math.max(1, today.totalCalories)) * 100,
+                )}
+                %
+              </i>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="story-scene scene-food">
+        <div className="scene-copy right">
+          <span>04 / 食物</span>
+          <h2>
+            {focusedMeal ? mealNames[focusedMeal.type] : "这一餐"}，<br />
+            继续解构。
+          </h2>
+          <p>片段体积来自食物热量占本餐比例。面积不是装饰，而是热量贡献。</p>
+        </div>
+        <div className="food-labels left">
+          {focusedFoods.slice(0, 6).map((food) => (
+            <article key={food.id}>
+              <span>{food.name}</span>
+              <strong>{Math.round(food.calories)} 千卡</strong>
+              <i>
+                {Math.round(
+                  (food.calories /
+                    Math.max(
+                      1,
+                      focusedMeal?.totalCalories ?? today.totalCalories,
+                    )) *
+                    100,
+                )}
+                %
+              </i>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="story-scene scene-macros">
+        <div className="scene-copy left">
+          <span>05 / 营养素</span>
+          <h2>
+            食物溶解成
+            <br />
+            三条营养流。
+          </h2>
+          <p>宽度使用供能比例，而不是克数比例：蛋白质与碳水 × 4，脂肪 × 9。</p>
+        </div>
+        <div className="macro-labels right">
+          <article>
+            <i className="protein" />
+            <span>蛋白质</span>
+            <strong>{Math.round(macro.proteinRatio * 100)}%</strong>
+            <small>
+              {Math.round(today.protein)} / {target.proteinTarget} 克
+            </small>
+          </article>
+          <article>
+            <i className="carbs" />
+            <span>碳水</span>
+            <strong>{Math.round(macro.carbsRatio * 100)}%</strong>
+            <small>
+              {Math.round(today.carbs)} / {target.carbTarget} 克
+            </small>
+          </article>
+          <article>
+            <i className="fat" />
+            <span>脂肪</span>
+            <strong>{Math.round(macro.fatRatio * 100)}%</strong>
+            <small>
+              {Math.round(today.fat)} / {target.fatTarget} 克
+            </small>
+          </article>
+        </div>
+      </section>
+      <section className="story-scene scene-balance">
+        <div className="balance-center">
+          <span>06 / 能量平衡</span>
+          <strong>{Math.round(today.totalCalories)}</strong>
+          <small>今日摄入 · 千卡</small>
+          <i />
+          <b>{target.targetCalories}</b>
+          <small>每日目标 · 千卡</small>
+          <p>
+            {remaining >= 0
+              ? `距离目标还有 ${Math.round(remaining)} 千卡。`
+              : `比目标高出 ${Math.abs(Math.round(remaining))} 千卡。`}
+          </p>
+          <Link to="/record">
+            <Plus />
+            记录这一餐
+          </Link>
+        </div>
+      </section>
+      <section className="story-scene scene-week">
+        <div className="scene-copy right">
+          <span>07 / 过去七天</span>
+          <h2>
+            七只餐盘，
+            <br />
+            成为一段地貌。
+          </h2>
+          <p>圆盘高度与每日偏差相关，亮度由一致性生成。</p>
+        </div>
+        <div className="week-summary left">
+          <strong>{weekAverage}</strong>
+          <span>七日平均 · 千卡</span>
+          <b>
+            {
+              week.filter(
+                (record) => record.totalCalories > target.targetCalories,
+              ).length
+            }{" "}
+            天
+          </b>
+          <span>高于每日目标</span>
+          <Link to="/trends">
+            进入趋势空间 <ArrowUpRight />
+          </Link>
+        </div>
+      </section>
+      <section className="story-scene scene-month">
+        <div className="month-ending">
+          <span>08 / 三十天</span>
+          <h2>
+            时间围成一圈，
+            <br />
+            习惯开始显形。
+          </h2>
+          <div>
+            <article>
+              <strong>{monthConsistency}%</strong>
+              <span>月度平均一致性</span>
+            </article>
+            <article>
+              <strong>{deviation.within}</strong>
+              <span>天落在目标 ±10%</span>
+            </article>
+            <article>
+              <strong>
+                {deviation.average >= 0 ? "+" : ""}
+                {deviation.average}
+              </strong>
+              <span>平均偏差 · 千卡</span>
+            </article>
+          </div>
+          <p>
+            每一个透明 Lens
+            代表一天；填充映射摄入比例，厚度映射偏差，亮度映射一致性。
+          </p>
+          <Link to="/trends">
+            探索完整三十天 <ArrowUpRight />
+          </Link>
+        </div>
+      </section>
+      <section className="home-meal-log">
+        <header>
+          <span>今天的可编辑记录</span>
+          <h2>
+            数据仍然可以
+            <br />
+            被你改变。
+          </h2>
+        </header>
+        {today.meals.map((meal) => (
+          <article key={meal.id}>
+            <time>{new Date(meal.timestamp).toTimeString().slice(0, 5)}</time>
+            <div>
+              <span>{mealNames[meal.type]}</span>
+              <h3>{meal.foods.map((food) => food.name).join("、")}</h3>
+            </div>
+            <strong>
+              {Math.round(meal.totalCalories)}
+              <small> 千卡</small>
+            </strong>
+            <Link
+              to={`/record?meal=${meal.id}`}
+              aria-label={`编辑${mealNames[meal.type]}`}
+            >
+              <Edit3 />
+            </Link>
+          </article>
+        ))}
+        <Link className="add-from-home" to="/record">
+          <Plus />
+          新增餐食
+        </Link>
+      </section>
+      <footer className="immersive-footer">
+        <b>CalorieLens</b>
+        <span>数据用于课程展示，不构成专业营养建议。</span>
+        <Link to="/trends">
+          时间，让饮食显现规律。 <ArrowUpRight />
+        </Link>
+      </footer>
+    </div>
+  );
+}
