@@ -24,7 +24,7 @@ export function Profile(){
     {icon:<Target/>,label:'你的每日目标',value:`${shown.targetCalories} 千卡`,note:goalLabels[form.goal]},
   ]
   return <motion.div className="body-page" initial={{opacity:0}} animate={{opacity:1}}>
-    <header className="body-hero"><p>身体 · 能量基线</p><h1>先理解身体，<br/>再理解每一口。</h1><span>这里的数字不是判决，而是一把观察日常能量的尺。填写基础数据后，今日与趋势会同步更新。</span></header>
+    <header className="body-hero"><p>身体 · 能量基线</p><h1>你的身体，<br/>每天需要多少能量？</h1><span>这里的数字不是判决，而是一把观察日常能量的尺。填写基础数据后，今日与趋势会同步更新。</span></header>
     <main className="body-layout">
       <form className="body-form" onSubmit={submit}>
         <div className="body-form-head"><span>01 / 你的数据</span><h2>建立个人能量坐标</h2><p>采用 Mifflin–St Jeor 公式进行课程展示级估算。</p></div>

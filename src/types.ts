@@ -2,7 +2,7 @@ export type Sex = 'male' | 'female'
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'high' | 'extreme'
 export type Goal = 'lose' | 'maintain' | 'gain'
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
-export type FoodCategory = '主食'|'肉类'|'蛋奶'|'蔬菜'|'水果'|'饮料'|'零食'|'坚果'|'乳制品'|'其他'
+export type FoodCategory = '主食'|'肉类'|'海鲜'|'蛋类'|'乳制品'|'蔬菜'|'水果'|'豆制品'|'坚果'|'饮料'|'零食'|'调味 / 其他'|'蛋奶'|'其他'
 export type FoodSource = 'ai'|'manual'|'custom'|'recent'|'demo'
 
 export interface UserProfile { sex: Sex; age: number; height: number; weight: number; activityLevel: ActivityLevel; goal: Goal }

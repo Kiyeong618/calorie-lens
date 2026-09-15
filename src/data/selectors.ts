@@ -1,15 +1,21 @@
-import type { DailyRecord, MealType, NutritionTarget } from '../types'
+import type { DailyRecord, FoodItem, MealType, NutritionTarget } from '../types'
 
-export const getDailyCalories = (record?: DailyRecord) => record?.totalCalories ?? 0
-export const getMacroCalories = (record?: DailyRecord) => ({ protein: (record?.protein ?? 0) * 4, carbs: (record?.carbs ?? 0) * 4, fat: (record?.fat ?? 0) * 9 })
-export const getCalorieDeviation = (record: DailyRecord | undefined, target: number) => getDailyCalories(record) - target
-export const getConsistencyScore = (record: DailyRecord | undefined, target: number) => target > 0 ? Math.max(0, Math.round((1 - Math.abs(getCalorieDeviation(record, target)) / target) * 100)) : 0
-export function getMealDistribution(record?: DailyRecord) { const types: MealType[] = ['breakfast','lunch','dinner','snack']; return types.map(type => ({ type, calories: record?.meals.filter(m=>m.type===type).reduce((s,m)=>s+m.totalCalories,0) ?? 0 })) }
-export const getEnergyBalance = (record: DailyRecord | undefined, target: NutritionTarget) => ({ intake: getDailyCalories(record), expenditure: target.tdee, goal: target.targetCalories, remaining: target.targetCalories - getDailyCalories(record) })
-export const getSelectedDayData = (records: DailyRecord[], selectedDate: string) => records.find(r=>r.date===selectedDate)
-export const getMacroRatios = (record: DailyRecord | undefined, target: NutritionTarget) => [
-  target.targetCalories ? getDailyCalories(record)/target.targetCalories*100 : 0,
-  target.proteinTarget ? (record?.protein??0)/target.proteinTarget*100 : 0,
-  target.carbTarget ? (record?.carbs??0)/target.carbTarget*100 : 0,
-  target.fatTarget ? (record?.fat??0)/target.fatTarget*100 : 0,
-]
+const mealTypes:MealType[]=['breakfast','lunch','dinner','snack']
+const safe=(value:number|undefined)=>Number.isFinite(value)?Math.max(0,value??0):0
+export const getDailyNutrition=(record?:DailyRecord)=>({calories:safe(record?.totalCalories),protein:safe(record?.protein),carbs:safe(record?.carbs),fat:safe(record?.fat)})
+export const getDailyCalories=(record?:DailyRecord)=>getDailyNutrition(record).calories
+export const getMealDistribution=(record?:DailyRecord)=>mealTypes.map(type=>{const meals=record?.meals.filter(meal=>meal.type===type)??[];return{type,calories:+meals.reduce((sum,meal)=>sum+safe(meal.totalCalories),0).toFixed(1),protein:+meals.reduce((sum,meal)=>sum+safe(meal.protein),0).toFixed(1),carbs:+meals.reduce((sum,meal)=>sum+safe(meal.carbs),0).toFixed(1),fat:+meals.reduce((sum,meal)=>sum+safe(meal.fat),0).toFixed(1),count:meals.length}})
+export const getFoodDistribution=(record?:DailyRecord)=>{const map=new Map<string,FoodItem>();for(const food of record?.meals.flatMap(meal=>meal.foods)??[]){const key=food.foodDefinitionId??food.name;const current=map.get(key);map.set(key,current?{...current,grams:current.grams+safe(food.grams),calories:current.calories+safe(food.calories),protein:current.protein+safe(food.protein),carbs:current.carbs+safe(food.carbs),fat:current.fat+safe(food.fat)}:{...food})}return[...map.values()].sort((a,b)=>b.calories-a.calories)}
+export const getMacroEnergyRatio=(record?:DailyRecord)=>{const protein=safe(record?.protein)*4,carbs=safe(record?.carbs)*4,fat=safe(record?.fat)*9,total=Math.max(1,protein+carbs+fat);return{protein,carbs,fat,total,proteinRatio:protein/total,carbsRatio:carbs/total,fatRatio:fat/total}}
+export const getCalorieDeviation=(record:DailyRecord|undefined,target:number)=>getDailyCalories(record)-safe(target)
+export const getConsistency=(record:DailyRecord|undefined,target:number)=>target>0?Math.max(0,Math.round((1-Math.abs(getCalorieDeviation(record,target))/target)*100)):0
+export const getWeeklyRecords=(records:DailyRecord[],endDate?:string)=>{const sorted=[...records].sort((a,b)=>a.date.localeCompare(b.date));const end=endDate?sorted.findIndex(r=>r.date===endDate):-1;return sorted.slice(Math.max(0,(end>=0?end+1:sorted.length)-7),end>=0?end+1:undefined)}
+export const getMonthlyRecords=(records:DailyRecord[])=>[...records].sort((a,b)=>a.date.localeCompare(b.date)).slice(-30)
+export const getMealRhythm=(records:DailyRecord[])=>records.flatMap((record,dayIndex)=>record.meals.map(meal=>{const time=new Date(meal.timestamp);return{id:meal.id,date:record.date,dayIndex,type:meal.type,minutes:time.getHours()*60+time.getMinutes(),calories:safe(meal.totalCalories),share:record.totalCalories?meal.totalCalories/record.totalCalories:0}}))
+export const getFoodScatterData=(records:DailyRecord[])=>{const map=new Map<string,{id:string;name:string;kcalDensity:number;proteinDensity:number;grams:number;calories:number;dates:Set<string>}>();for(const record of records)for(const food of record.meals.flatMap(m=>m.foods)){const key=food.foodDefinitionId??food.name;const item=map.get(key)??{id:key,name:food.name,kcalDensity:safe(food.kcalPer100g),proteinDensity:safe(food.proteinPer100g),grams:0,calories:0,dates:new Set<string>()};item.grams+=safe(food.grams);item.calories+=safe(food.calories);item.dates.add(record.date);map.set(key,item)}return[...map.values()].map(item=>({...item,days:item.dates.size})).sort((a,b)=>b.grams-a.grams)}
+export const getTernaryPoint=(record?:DailyRecord)=>{const macro=getMacroEnergyRatio(record);const protein={x:.5,y:0},carbs={x:0,y:1},fat={x:1,y:1};return{x:protein.x*macro.proteinRatio+carbs.x*macro.carbsRatio+fat.x*macro.fatRatio,y:protein.y*macro.proteinRatio+carbs.y*macro.carbsRatio+fat.y*macro.fatRatio,...macro}}
+export const getTargetTernaryPoint=(target:NutritionTarget)=>{const protein=target.proteinTarget*4,carbs=target.carbTarget*4,fat=target.fatTarget*9,total=Math.max(1,protein+carbs+fat);return{x:.5*(protein/total)+fat/total,y:(carbs+fat)/total,proteinRatio:protein/total,carbsRatio:carbs/total,fatRatio:fat/total}}
+export const getEnergyBalance=(record:DailyRecord|undefined,target:NutritionTarget)=>({intake:getDailyCalories(record),expenditure:target.tdee,goal:target.targetCalories,remaining:target.targetCalories-getDailyCalories(record)})
+export const getSelectedDayData=(records:DailyRecord[],selectedDate:string)=>records.find(r=>r.date===selectedDate)
+export const getMacroRatios=(record:DailyRecord|undefined,target:NutritionTarget)=>[target.targetCalories?getDailyCalories(record)/target.targetCalories*100:0,target.proteinTarget?(record?.protein??0)/target.proteinTarget*100:0,target.carbTarget?(record?.carbs??0)/target.carbTarget*100:0,target.fatTarget?(record?.fat??0)/target.fatTarget*100:0]
+export const getDeviationSummary=(records:DailyRecord[],target:number)=>{const deviations=getMonthlyRecords(records).map(record=>getCalorieDeviation(record,target));const within=deviations.filter(value=>Math.abs(value)<=target*.1).length;return{within,average:Math.round(deviations.reduce((sum,value)=>sum+value,0)/Math.max(1,deviations.length)),maximum:Math.round(Math.max(0,...deviations)),minimum:Math.round(Math.min(0,...deviations))}}
