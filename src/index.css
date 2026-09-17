@@ -121,3 +121,47 @@ html.guided-story{scroll-snap-type:y proximity;scroll-behavior:smooth}html.guide
 .immersive-home .scene-copy>span,.immersive-home .balance-center>span,.immersive-home .month-ending>span{color:#7079ff}
 .immersive-home .scene-data>div,.immersive-home .month-ending>div{border-color:rgba(255,255,255,.13)}
 .immersive-home .balance-center>a,.immersive-home .week-summary a,.immersive-home .month-ending>a{background:#f4f5f7;color:#050608}
+
+/* Homepage type lockup — preserve intentional line breaks without glyph collisions. */
+.immersive-home .story-scene{padding-inline:clamp(72px,6vw,132px);column-gap:clamp(48px,6vw,120px)}
+.immersive-home .scene-opening h1{width:max-content;max-width:none;font-size:clamp(64px,6.4vw,112px);line-height:1.05;letter-spacing:-.045em;white-space:nowrap;word-break:keep-all;overflow-wrap:normal}
+.immersive-home .scene-copy{width:min(100%,620px);min-width:0}
+.immersive-home .scene-copy.right{width:min(100%,680px)}
+.immersive-home .scene-copy h2,.immersive-home .month-ending h2{max-width:none;font-size:clamp(44px,4.4vw,72px);line-height:1.08;letter-spacing:-.035em;white-space:nowrap;text-wrap:nowrap;word-break:keep-all;overflow-wrap:normal}
+.immersive-home .scene-food .scene-copy h2{font-size:clamp(104px,13vw,210px);line-height:.82}
+.immersive-home .scene-data{min-width:0}
+.immersive-home .scene-data>strong{font-size:clamp(76px,9vw,148px);line-height:.82}
+.immersive-home .scene-minimal-data{min-width:260px}
+.immersive-home .scene-minimal-data span,.immersive-home .scene-minimal-data strong,.immersive-home .scene-minimal-data small{white-space:nowrap}
+.immersive-home .week-summary{width:360px;grid-template-columns:minmax(150px,auto) minmax(130px,1fr);column-gap:22px}
+.immersive-home .week-summary span{white-space:nowrap;line-height:1.45}
+.immersive-home .month-ending{width:min(100%,1000px)}
+
+@media(max-width:1280px) and (min-width:901px){
+  .immersive-home .story-scene{padding-inline:clamp(56px,5vw,80px);column-gap:36px}
+  .immersive-home .scene-opening h1{font-size:clamp(60px,7vw,88px)}
+  .immersive-home .scene-copy h2,.immersive-home .month-ending h2{font-size:clamp(42px,4.7vw,60px)}
+  .immersive-home .scene-food .scene-copy h2{font-size:clamp(96px,14vw,170px)}
+  .immersive-home .scene-data{width:min(42vw,470px)}
+  .immersive-home .scene-data>strong{font-size:clamp(72px,9vw,112px)}
+  .immersive-home .week-summary{width:320px;grid-template-columns:minmax(130px,auto) minmax(118px,1fr)}
+}
+
+@media(max-width:900px){
+  .immersive-home .story-scene{padding:15vh 22px;column-gap:0}
+  .immersive-home .scene-opening h1{font-size:clamp(52px,16vw,82px);line-height:1.05;white-space:nowrap}
+  .immersive-home .scene-copy,.immersive-home .scene-copy.right{width:100%;max-width:100%}
+  .immersive-home .scene-copy h2,.immersive-home .month-ending h2{font-size:clamp(38px,10vw,58px);line-height:1.08;white-space:nowrap}
+  .immersive-home .scene-food .scene-copy h2{font-size:clamp(88px,27vw,150px);line-height:.82}
+  .immersive-home .scene-data{width:100%}
+  .immersive-home .scene-minimal-data{min-width:0}
+  .immersive-home .week-summary{width:100%;grid-template-columns:minmax(118px,auto) minmax(110px,1fr)}
+  .immersive-home .month-ending{width:100%}
+}
+
+@media(max-width:430px){
+  .immersive-home .scene-opening h1{font-size:clamp(48px,15vw,64px)}
+  .immersive-home .scene-copy h2,.immersive-home .month-ending h2{font-size:clamp(34px,9.5vw,44px)}
+  .immersive-home .week-summary{grid-template-columns:1fr auto;gap:8px 14px}
+  .immersive-home .week-summary strong{font-size:58px}
+}
