@@ -1,4 +1,4 @@
-# CalorieLens 5.2 · Liquid Data Lens
+# CalorieLens 5.2 · Energy Topographic Specimen
 
 > 看见，你吃下的能量。
 
@@ -6,28 +6,28 @@ CalorieLens 是面向大学“数据可视化”课程的个人饮食能量可�
 
 ## 产品结构
 
-- 今日：首页采用单一 WebGL Canvas；滚动控制摄影机，而不是让模型原地旋转。
+- 今日：首页采用单一 WebGL Canvas；滚动持续深入同一块能量地形标本。
 - 记录：约 100 种食物搜索、收藏、最近使用、自定义/包装食品、多食物组餐、编辑删除，以及实时 Meal Treemap。
 - 身体：BMI、BMR、TDEE 和目标热量实时推导，配公式实验室与能量 Waterfall。
 - 趋势：“数据观测室”提供 10 组统计模块与跨图日期联动。
 - AI：图片扫描、检测框、置信度、份量校正；结果与手动录入统一为 `FoodItem`。
 
-## DataLens True Morph
+## DataLens · 能量地形标本
 
 首页从开始到营养流成形始终只渲染一个 `DataLens` Mesh。它使用固定的 128×128 顶点拓扑、固定 UV 和固定索引；滚动只改变 Shader uniforms，不按阶段挂载或淡入另一个核心对象。
 
 | 连续状态         | 同一表面的数据映射                                            |
 | ---------------- | ------------------------------------------------------------- |
-| Membrane         | 不规则薄膜轮廓与珍珠 / 镀铬混合材质                           |
-| Meal Depth       | 顶点按餐次分组，Z 方向厚度来自餐次热量占比                    |
-| Lunch Focus      | 午餐顶点原地展开，其他餐次顶点后移并降低亮度                  |
-| Food Cells       | 校准后的 Power Diagram；面积近似食物热量占本餐比例            |
-| Macro Extraction | 原 Food Cell 顶点延迟拉向三个 attractor，过渡中保持膜与流相连 |
-| Macro Sculpture  | 流宽由蛋白质×4、碳水×4、脂肪×9 的供能比例控制                 |
+| Membrane         | 不规则标本轮廓、克制的珍珠材质和连续等高线                    |
+| Meal Depth       | 同一表面按餐次形成浅台地，高度来自餐次热量占比                |
+| Lunch Focus      | 午餐区域保持清晰，其他餐次仍留在同一表面并降低亮度            |
+| Food Cells       | 午餐内部校准后的 Power Diagram；面积近似食物热量占本餐比例    |
+| Macro Extraction | 三种营养素先作为支流沿 Food Cell 表面汇聚，再从标本边缘流出   |
+| Macro Sculpture  | 三条不同空间路径保持与标本相连，宽度采用 4 / 4 / 9 供能比例   |
 
-Camera Director 使用 8 个彼此独立的 Shot，而不是一条贯穿全程的中心轴曲线。每个 Shot 分别插值 Camera Position、独立 Target、34°–52° FOV 与 -4°–3° Roll，覆盖不对称 Dolly、Lens Close Pass、横向 Reveal、Orbit、Lunch Lock-on、Food Fly-through、Nutrition Flight 和 50.36 unit Crane Pull-out。
+当前 Camera Director 刻意使用稳定机位与轻微 Dolly，让造型、数据分区和表面汇流本身承担叙事，不用剧烈运镜掩盖形态问题。
 
-开发模式可打开 `?cameraOnly&cameraDebug`：DataLens 固定在抽取中间态并关闭表面运动，只播放摄影机，同时显示 Camera Path、Target Path、World Anchors 和实时坐标。也可使用 `?freeze=0.1`、`?freeze=0.3`、`?freeze=0.5`、`?freeze=0.7`、`?freeze=0.82` 检查五个 Morph 静帧；这些调试参数在 production 均不生效。
+开发模式可使用 `?freeze=0.1`、`?freeze=0.3`、`?freeze=0.5`、`?freeze=0.7`、`?freeze=0.82` 检查五个连续静帧；调试参数在 production 不生效。
 
 首页只挂载一个 Canvas，DPR 上限 1.65。移动端和 `prefers-reduced-motion` 使用静态数据透镜；所有必要数值均有 DOM 等价文本。
 

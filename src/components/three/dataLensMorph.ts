@@ -28,20 +28,3 @@ export function getFreezeProgress() {
   const value = Number(raw);
   return Number.isFinite(value) ? clamp(value) : undefined;
 }
-export function cameraDebugEnabled() {
-  return (
-    import.meta.env.DEV &&
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).has("cameraDebug")
-  );
-}
-export function cameraOnlyDebugEnabled() {
-  return (
-    import.meta.env.DEV &&
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).has("cameraOnly")
-  );
-}
-export function cameraDiagnosticsEnabled() {
-  return cameraDebugEnabled() || cameraOnlyDebugEnabled();
-}

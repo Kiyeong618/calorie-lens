@@ -1,6 +1,5 @@
-import { Line } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import {
   Matrix4,
   MathUtils,
@@ -8,67 +7,25 @@ import {
   Quaternion,
   Vector3,
 } from "three";
-import { cameraDiagnosticsEnabled } from "./dataLensMorph";
-import {
-  CAMERA_SHOTS,
-  WORLD_ANCHORS,
-  getCameraFrame,
-  type CameraDebugInfo,
-} from "./cameraShots";
 
-function CameraDebugPaths() {
-  if (!cameraDiagnosticsEnabled()) return null;
-  const cameraPoints = CAMERA_SHOTS.flatMap((shot, index) =>
-      index ? [shot.cameraTo] : [shot.cameraFrom, shot.cameraTo],
-    ),
-    targetPoints = CAMERA_SHOTS.flatMap((shot, index) =>
-      index ? [shot.targetTo] : [shot.targetFrom, shot.targetTo],
-    );
-  return (
-    <group>
-      <Line points={cameraPoints} color="#00d9ff" lineWidth={2} />
-      <Line points={targetPoints} color="#ff4cbe" lineWidth={2} />
-      {Object.entries(WORLD_ANCHORS).map(([name, position]) => (
-        <axesHelper key={name} args={[0.7]} position={position} />
-      ))}
-    </group>
-  );
-}
+export function CameraDirector({ progress }: { progress: number }) {
+  const { camera } = useThree();
+  const matrix = useMemo(() => new Matrix4(), []);
+  const destination = useMemo(() => new Vector3(), []);
+  const target = useMemo(() => new Vector3(1.05, 0.05, 0), []);
+  const rotation = useMemo(() => new Quaternion(), []);
+  const up = useMemo(() => new Vector3(0, 1, 0), []);
 
-export function CameraDirector({
-  progress,
-  onDebug,
-}: {
-  progress: number;
-  onDebug?: (info: CameraDebugInfo) => void;
-}) {
-  const { camera } = useThree(),
-    matrix = useMemo(() => new Matrix4(), []),
-    look = useMemo(() => new Quaternion(), []),
-    bank = useMemo(() => new Quaternion(), []),
-    localZ = useMemo(() => new Vector3(0, 0, 1), []),
-    up = useMemo(() => new Vector3(0, 1, 0), []),
-    tick = useRef(0);
   useFrame(() => {
-    const frame = getCameraFrame(progress);
-    camera.position.lerp(frame.position, 0.18);
-    matrix.lookAt(camera.position, frame.target, up);
-    look.setFromRotationMatrix(matrix);
-    bank.setFromAxisAngle(localZ, frame.roll);
-    look.multiply(bank);
-    camera.quaternion.slerp(look, 0.2);
+    const dolly = MathUtils.smoothstep(Math.min(progress, 0.86), 0, 0.86);
+    destination.set(0.9, 1.35, MathUtils.lerp(10.7, 9.75, dolly));
+    camera.position.lerp(destination, 0.14);
+    matrix.lookAt(camera.position, target, up);
+    rotation.setFromRotationMatrix(matrix);
+    camera.quaternion.slerp(rotation, 0.16);
     const perspective = camera as PerspectiveCamera;
-    perspective.fov = MathUtils.lerp(perspective.fov, frame.fov, 0.16);
+    perspective.fov = MathUtils.lerp(perspective.fov, 38, 0.12);
     perspective.updateProjectionMatrix();
-    if (onDebug && tick.current++ % 8 === 0)
-      onDebug({
-        progress,
-        shot: frame.shot.id,
-        position: camera.position.toArray(),
-        target: frame.target.toArray(),
-        fov: perspective.fov,
-        roll: MathUtils.radToDeg(frame.roll),
-      });
   });
-  return <CameraDebugPaths />;
+  return null;
 }
