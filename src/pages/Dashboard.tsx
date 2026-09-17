@@ -98,7 +98,7 @@ export function Dashboard() {
       endTrigger,
       start: "top top",
       end: "bottom bottom",
-      scrub: 0.35,
+      scrub: 0.8,
       onUpdate: (self) => setProgress(self.progress),
     });
     return () => trigger.kill();

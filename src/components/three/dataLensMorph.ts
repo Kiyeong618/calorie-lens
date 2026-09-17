@@ -35,3 +35,13 @@ export function cameraDebugEnabled() {
     new URLSearchParams(window.location.search).has("cameraDebug")
   );
 }
+export function cameraOnlyDebugEnabled() {
+  return (
+    import.meta.env.DEV &&
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("cameraOnly")
+  );
+}
+export function cameraDiagnosticsEnabled() {
+  return cameraDebugEnabled() || cameraOnlyDebugEnabled();
+}

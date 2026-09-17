@@ -25,7 +25,9 @@ CalorieLens 是面向大学“数据可视化”课程的个人饮食能量可�
 | Macro Extraction | 原 Food Cell 顶点延迟拉向三个 attractor，过渡中保持膜与流相连 |
 | Macro Sculpture  | 流宽由蛋白质×4、碳水×4、脂肪×9 的供能比例控制                 |
 
-镜头在本轮保持稳定，只做轻微 Dolly。开发模式可直接打开 `?freeze=0.1`、`?freeze=0.3`、`?freeze=0.5`、`?freeze=0.7`、`?freeze=0.82` 检查五个关键静帧；`freeze` 和 `cameraDebug` 在 production 均不生效。
+Camera Director 使用 8 个彼此独立的 Shot，而不是一条贯穿全程的中心轴曲线。每个 Shot 分别插值 Camera Position、独立 Target、34°–52° FOV 与 -4°–3° Roll，覆盖不对称 Dolly、Lens Close Pass、横向 Reveal、Orbit、Lunch Lock-on、Food Fly-through、Nutrition Flight 和 50.36 unit Crane Pull-out。
+
+开发模式可打开 `?cameraOnly&cameraDebug`：DataLens 固定在抽取中间态并关闭表面运动，只播放摄影机，同时显示 Camera Path、Target Path、World Anchors 和实时坐标。也可使用 `?freeze=0.1`、`?freeze=0.3`、`?freeze=0.5`、`?freeze=0.7`、`?freeze=0.82` 检查五个 Morph 静帧；这些调试参数在 production 均不生效。
 
 首页只挂载一个 Canvas，DPR 上限 1.65。移动端和 `prefers-reduced-motion` 使用静态数据透镜；所有必要数值均有 DOM 等价文本。
 

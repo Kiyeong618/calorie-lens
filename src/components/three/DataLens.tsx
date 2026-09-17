@@ -12,16 +12,18 @@ export function DataLens({
   record,
   target,
   freezeTime,
+  cameraOnly = false,
 }: {
   progress: number;
   record: DailyRecord;
   target: NutritionTarget;
   freezeTime?: number;
+  cameraOnly?: boolean;
 }) {
   const data = useMemo(() => mapDataLens(record, target), [record, target]);
   const geometry = useMemo(() => createDataLensGeometry(data), [data]);
   const material = useMemo(() => createDataLensMaterial(data), [data]);
-  const state = getDataLensState(progress);
+  const state = getDataLensState(cameraOnly ? 0.7 : progress);
 
   useEffect(
     () => () => {
@@ -32,7 +34,9 @@ export function DataLens({
   );
 
   useFrame(({ clock }) => {
-    material.uniforms.uTime.value = freezeTime ?? clock.elapsedTime;
+    material.uniforms.uTime.value = cameraOnly
+      ? 0
+      : (freezeTime ?? clock.elapsedTime);
     material.uniforms.uMealDepth.value = state.mealLayerProgress;
     material.uniforms.uFocus.value = state.focusProgress;
     material.uniforms.uFood.value = state.foodCellProgress;
@@ -44,7 +48,7 @@ export function DataLens({
     state.foodCellProgress * (1 - state.macroFlowProgress) * 0.78;
 
   return (
-    <group position={[0.35, -0.05, 0]} rotation={[-0.08, 0.08, -0.05]}>
+    <group position={[-3, 1, 0]} rotation={[-0.08, 0.08, -0.05]}>
       <mesh geometry={geometry} material={material} frustumCulled={false} />
       {data.foods.slice(0, 2).map((food, index) => {
         const seed = FOOD_SEEDS[index];
