@@ -2,7 +2,7 @@ name: Deploy CalorieLens Terrain Preview
 
 on:
   push:
-    branches: [codex/calorielens]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
