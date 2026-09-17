@@ -1,21 +1,24 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Line, Sparkles } from "@react-three/drei";
+import { Line } from "@react-three/drei";
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import {
-  Color,
+  BackSide,
+  BufferGeometry,
+  DoubleSide,
+  Float32BufferAttribute,
   Matrix4,
   MathUtils,
   PerspectiveCamera,
+  QuadraticBezierCurve3,
   Quaternion,
   Vector3,
   type Vector3Tuple,
 } from "three";
-import type { DailyRecord, MealType, NutritionTarget } from "../../types";
+import type { DailyRecord, NutritionTarget } from "../../types";
 import {
   getFoodDistribution,
   getMacroEnergyRatio,
   getMealDistribution,
-  getMealTimes,
   getMonthlyRecords,
 } from "../../data/selectors";
 import {
@@ -25,9 +28,29 @@ import {
   getCameraFrame,
 } from "./cameraTimeline";
 
-const mealColors = ["#e8b86c", "#e76f51", "#7167d9", "#7ca59b"],
+const glass = "#edeae1",
+  foodTints = ["#ded8c9", "#b8b0a6", "#d8cc8f", "#87978b"],
   macroColors = ["#f06445", "#7167e8", "#e6c941"];
 const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const smooth = (v: number) => {
+  const t = clamp(v);
+  return t * t * (3 - 2 * t);
+};
+const visibilityPhase = (
+  p: number,
+  enterStart: number,
+  enterEnd: number,
+  exitStart: number,
+  exitEnd: number,
+) =>
+  Math.min(
+    smooth((p - enterStart) / (enterEnd - enterStart)),
+    1 - smooth((p - exitStart) / (exitEnd - exitStart)),
+  );
+const showCameraDebug = () =>
+  import.meta.env.DEV &&
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).has("cameraDebug");
 interface DebugInfo {
   progress: number;
   shot: string;
@@ -35,6 +58,151 @@ interface DebugInfo {
   target: Vector3Tuple;
   fov: number;
   roll: number;
+}
+
+function createLensSurface(
+  radius: number,
+  depth: number,
+  segments = 96,
+  rings = 6,
+  seed = 0,
+) {
+  const geometry = new BufferGeometry(),
+    positions: number[] = [],
+    indices: number[] = [];
+  const topCenter = 0,
+    bottomCenter = 1;
+  positions.push(0, 0, depth / 2, 0, 0, -depth / 2);
+  const ringIndex = (side: number, ring: number, segment: number) =>
+    2 + side * rings * segments + (ring - 1) * segments + (segment % segments);
+  for (let side = 0; side < 2; side++)
+    for (let ring = 1; ring <= rings; ring++) {
+      const f = ring / rings;
+      for (let segment = 0; segment < segments; segment++) {
+        const angle = (segment / segments) * Math.PI * 2,
+          edge =
+            1 +
+            (Math.sin(angle * 3 + seed) * 0.018 +
+              Math.cos(angle * 5 - seed) * 0.009) *
+              f *
+              f,
+          r = radius * f * edge,
+          z = (depth / 2) * (1 - 0.56 * f * f) * (side ? -1 : 1);
+        positions.push(Math.cos(angle) * r, Math.sin(angle) * r, z);
+      }
+    }
+  for (let segment = 0; segment < segments; segment++) {
+    const next = (segment + 1) % segments;
+    indices.push(topCenter, ringIndex(0, 1, segment), ringIndex(0, 1, next));
+    indices.push(bottomCenter, ringIndex(1, 1, next), ringIndex(1, 1, segment));
+  }
+  for (let ring = 1; ring < rings; ring++)
+    for (let segment = 0; segment < segments; segment++) {
+      const next = (segment + 1) % segments,
+        a = ringIndex(0, ring, segment),
+        b = ringIndex(0, ring, next),
+        c = ringIndex(0, ring + 1, segment),
+        d = ringIndex(0, ring + 1, next),
+        e = ringIndex(1, ring, segment),
+        f = ringIndex(1, ring, next),
+        g = ringIndex(1, ring + 1, segment),
+        h = ringIndex(1, ring + 1, next);
+      indices.push(a, c, b, b, c, d, e, f, g, f, h, g);
+    }
+  for (let segment = 0; segment < segments; segment++) {
+    const next = (segment + 1) % segments,
+      a = ringIndex(0, rings, segment),
+      b = ringIndex(0, rings, next),
+      c = ringIndex(1, rings, segment),
+      d = ringIndex(1, rings, next);
+    indices.push(a, c, b, b, c, d);
+  }
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+function createCellSurface(
+  radius: number,
+  start: number,
+  end: number,
+  seed: number,
+) {
+  const geometry = new BufferGeometry(),
+    positions: number[] = [],
+    indices: number[] = [],
+    radial = 7,
+    angular = Math.max(8, Math.round((end - start) * 18));
+  for (let r = 0; r <= radial; r++) {
+    const rf = r / radial;
+    for (let a = 0; a <= angular; a++) {
+      const af = a / angular,
+        bend = Math.sin(rf * Math.PI) * Math.sin(af * Math.PI) * 0.055,
+        angle =
+          MathUtils.lerp(start + 0.018, end - 0.018, af) +
+          bend * (seed % 2 ? 1 : -1),
+        edge = 1 + Math.sin(angle * 3 + seed) * 0.018 * rf,
+        rr = radius * rf * edge;
+      positions.push(
+        Math.cos(angle) * rr,
+        Math.sin(angle) * rr,
+        0.08 * (1 - rf * rf) + seed * 0.012,
+      );
+    }
+  }
+  for (let r = 0; r < radial; r++)
+    for (let a = 0; a < angular; a++) {
+      const row = angular + 1,
+        i = r * row + a;
+      indices.push(i, i + row, i + 1, i + 1, i + row, i + row + 1);
+    }
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+function createRibbonSurface(width: number, index: number) {
+  const geometry = new BufferGeometry(),
+    positions: number[] = [],
+    indices: number[] = [],
+    steps = 52,
+    curve = new QuadraticBezierCurve3(
+      new Vector3(-9, -3 + index * 2, -7),
+      new Vector3(index === 1 ? 0 : -2, 4 - index * 0.7, 0),
+      new Vector3(9, 3 - index * 1.35, 7),
+    );
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps,
+      point = curve.getPoint(t),
+      tangent = curve.getTangent(t),
+      side = new Vector3()
+        .crossVectors(tangent, new Vector3(0, 0, 1))
+        .normalize(),
+      pulse = 0.72 + Math.sin(t * Math.PI) * 0.28,
+      w = width * pulse;
+    positions.push(
+      ...point
+        .clone()
+        .addScaledVector(side, w / 2)
+        .toArray(),
+      ...point
+        .clone()
+        .addScaledVector(side, -w / 2)
+        .toArray(),
+    );
+  }
+  for (let i = 0; i < steps; i++) {
+    const a = i * 2,
+      b = a + 1,
+      c = a + 2,
+      d = a + 3;
+    indices.push(a, b, c, b, d, c);
+  }
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 function CameraDirector({
@@ -55,7 +223,7 @@ function CameraDirector({
     const frame = getCameraFrame(progress),
       micro = CAMERA_ONLY_DEBUG
         ? new Vector3()
-        : new Vector3(pointer.x * 0.06, pointer.y * 0.04, 0),
+        : new Vector3(pointer.x * 0.04, pointer.y * 0.03, 0),
       destination = frame.position.clone().add(micro);
     camera.position.lerp(destination, 0.16);
     matrix.lookAt(camera.position, frame.target, up);
@@ -78,240 +246,274 @@ function CameraDirector({
   });
   return null;
 }
-function Lens({ ratio }: { ratio: number }) {
-  return (
-    <group rotation={[Math.PI / 2, 0, 0]}>
-      <mesh>
-        <torusGeometry args={[2.05, 0.31, 32, 120]} />
-        <meshPhysicalMaterial
-          color="#e9eee8"
-          transparent
-          opacity={0.26}
-          transmission={0.9}
-          roughness={0.06}
-          thickness={2.2}
-          ior={1.4}
-        />
-      </mesh>
-      <mesh scale={[1, 1, Math.max(0.1, clamp(ratio, 0, 1.2))]}>
-        <cylinderGeometry args={[1.82, 1.82, 0.32, 96]} />
-        <meshPhysicalMaterial
-          color={ratio > 1 ? "#e76f51" : "#c9ff24"}
-          transparent
-          opacity={0.2}
-          transmission={0.72}
-          roughness={0.18}
-        />
-      </mesh>
-    </group>
-  );
-}
-function MealShape({
-  type,
-  index,
-  scale = 1,
+function GlassMaterial({
+  opacity = 0.56,
+  tint = glass,
 }: {
-  type: MealType;
-  index: number;
-  scale?: number;
+  opacity?: number;
+  tint?: string;
 }) {
   return (
-    <mesh scale={scale}>
-      {type === "breakfast" ? (
-        <sphereGeometry args={[0.6, 32, 20]} />
-      ) : type === "lunch" ? (
-        <icosahedronGeometry args={[0.68, 3]} />
-      ) : type === "dinner" ? (
-        <torusKnotGeometry args={[0.43, 0.17, 72, 12, 2, 3]} />
-      ) : (
-        <capsuleGeometry args={[0.38, 0.65, 8, 20]} />
-      )}
-      <meshPhysicalMaterial
-        color={mealColors[index]}
-        transparent
-        opacity={0.68}
-        transmission={0.25}
-        roughness={0.3}
-      />
-    </mesh>
+    <meshPhysicalMaterial
+      color={tint}
+      transparent
+      opacity={opacity}
+      transmission={0.82}
+      thickness={1.5}
+      ior={1.38}
+      roughness={0.12}
+      clearcoat={0.65}
+      side={DoubleSide}
+      depthWrite={false}
+    />
   );
 }
-function MealOrbit({ record }: { record: DailyRecord }) {
-  const times = getMealTimes(record),
-    dist = getMealDistribution(record),
-    total = Math.max(1, record.totalCalories);
+function LiquidLens({ ratio, amount }: { ratio: number; amount: number }) {
+  const shell = useMemo(() => createLensSurface(2.8, 0.72, 112, 7, 0.4), []),
+    core = useMemo(() => createLensSurface(2.38, 0.26, 96, 6, 1.2), []);
   return (
-    <group position={WORLD_ANCHORS.meal}>
-      {dist
-        .filter((d) => d.calories > 0)
-        .map((meal, index) => {
-          const minutes =
-              times.find((t) => t.type === meal.type)?.minutes ??
-              (index + 2) * 240,
-            angle = (minutes / 1440) * Math.PI * 2,
-            radius = 2.5 + (meal.calories / total - 0.25) * 1.2;
-          return (
-            <group
-              key={meal.type}
-              position={[
-                Math.sin(angle) * radius,
-                Math.cos(angle) * radius,
-                Math.sin(angle * 0.5) * 1.2,
-              ]}
-            >
-              <MealShape
-                type={meal.type}
-                index={index}
-                scale={0.55 + (meal.calories / total) * 1.6}
-              />
-            </group>
-          );
-        })}
-      <Line
-        points={Array.from(
-          { length: 65 },
-          (_, i) =>
-            new Vector3(
-              Math.sin((i / 64) * Math.PI * 2) * 2.5,
-              Math.cos((i / 64) * Math.PI * 2) * 2.5,
-              0,
-            ),
-        )}
-        color="#f0eee6"
-        transparent
-        opacity={0.18}
-      />
+    <group
+      position={WORLD_ANCHORS.lens}
+      visible={amount > 0.01}
+      scale={0.96 + amount * 0.04}
+    >
+      <mesh geometry={shell}>
+        <GlassMaterial opacity={amount * 0.62} />
+      </mesh>
+      <mesh
+        geometry={core}
+        position={[0, -0.22 + (1 - clamp(ratio, 0, 1.15)) * 0.35, 0.02]}
+        scale={[0.96, 0.35 + clamp(ratio, 0, 1.15) * 0.55, 0.94]}
+      >
+        <GlassMaterial
+          opacity={amount * 0.24}
+          tint={ratio > 1 ? "#d9b4a4" : "#dce4c7"}
+        />
+      </mesh>
+      <mesh geometry={shell} scale={1.012}>
+        <meshBasicMaterial
+          color="#f5f1e8"
+          transparent
+          opacity={amount * 0.11}
+          side={BackSide}
+        />
+      </mesh>
     </group>
   );
 }
-function LunchPortal({ record }: { record: DailyRecord }) {
+function MealLayers({
+  record,
+  amount,
+  focus,
+}: {
+  record: DailyRecord;
+  amount: number;
+  focus: number;
+}) {
+  const meals = getMealDistribution(record).filter((item) => item.calories > 0),
+    total = Math.max(1, record.totalCalories);
+  const geometries = useMemo(
+    () =>
+      getMealDistribution(record)
+        .filter((item) => item.calories > 0)
+        .map((meal, index) =>
+          createLensSurface(
+            2.55,
+            0.08 + (meal.calories / total) * 0.7,
+            88,
+            5,
+            index * 0.7,
+          ),
+        ),
+    [record, total],
+  );
+  return (
+    <group position={WORLD_ANCHORS.meal} visible={amount > 0.01}>
+      {meals.map((meal, index) => {
+        const isLunch = meal.type === "lunch",
+          z =
+            (index - (meals.length - 1) / 2) * (0.28 + amount * 0.62) +
+            (isLunch ? focus * 0.28 : 0),
+          opacity =
+            amount * (isLunch ? 0.5 : MathUtils.lerp(0.3, 0.045, focus));
+        return (
+          <mesh
+            key={meal.type}
+            geometry={geometries[index]}
+            position={[0, (index - 1.5) * 0.08, z]}
+          >
+            <GlassMaterial opacity={opacity} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+function LunchLayer({
+  record,
+  amount,
+}: {
+  record: DailyRecord;
+  amount: number;
+}) {
   const lunch = getMealDistribution(record).find(
       (item) => item.type === "lunch",
     ),
-    scale =
-      0.9 + ((lunch?.calories ?? 0) / Math.max(1, record.totalCalories)) * 2;
+    share = (lunch?.calories ?? 0) / Math.max(1, record.totalCalories),
+    geometry = useMemo(
+      () => createLensSurface(3.15, 0.18 + share * 0.78, 108, 7, 1.8),
+      [share],
+    );
   return (
-    <group position={WORLD_ANCHORS.lunch}>
-      <MealShape type="lunch" index={1} scale={scale} />
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.4, 0.025, 8, 64]} />
-        <meshBasicMaterial color="#e76f51" transparent opacity={0.32} />
+    <group
+      position={WORLD_ANCHORS.lunch}
+      visible={amount > 0.01}
+      scale={0.88 + amount * 0.12}
+    >
+      <mesh geometry={geometry}>
+        <GlassMaterial opacity={amount * 0.58} />
       </mesh>
-    </group>
-  );
-}
-function FoodCells({ record }: { record: DailyRecord }) {
-  const meal = [...record.meals].sort(
-      (a, b) => b.totalCalories - a.totalCalories,
-    )[0],
-    foods = getFoodDistribution(
-      meal ? { ...record, meals: [meal] } : record,
-    ).slice(0, 9),
-    total = Math.max(1, meal?.totalCalories ?? 1);
-  const placements: Vector3Tuple[] = [
-    [-0.9, 0.8, 0.8],
-    [1.4, -0.7, -0.4],
-    [-1.8, -0.9, -2.5],
-    [1.1, 1.5, -4],
-    [-0.4, -1.7, -5.5],
-    [2.2, 0.4, -7],
-    [-2.4, 1.1, -8.5],
-    [0.5, 2, -10],
-    [-1.2, -1.2, -11.5],
-  ];
-  return (
-    <group position={WORLD_ANCHORS.food}>
-      {foods.map((food, index) => (
-        <mesh
-          key={food.id}
-          position={placements[index]}
-          scale={0.35 + Math.sqrt(food.calories / total)}
-        >
-          <icosahedronGeometry args={[1, 2]} />
-          <meshPhysicalMaterial
-            color={mealColors[index % 4]}
-            transparent
-            opacity={0.78}
-            transmission={0.16}
-            roughness={0.35}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-function NutritionRibbons({ record }: { record: DailyRecord }) {
-  const macro = getMacroEnergyRatio(record),
-    shares = [macro.proteinRatio, macro.carbsRatio, macro.fatRatio],
-    positions: Vector3Tuple[] = [
-      [-1.4, 1.2, -2],
-      [0.4, -0.5, -1],
-      [2.1, 1.5, -4],
-    ];
-  return (
-    <group position={WORLD_ANCHORS.nutrition}>
-      {shares.map((share, index) => (
-        <mesh
-          key={index}
-          position={positions[index]}
-          rotation={[
-            index === 0 ? 0.08 : -0.06,
-            index === 2 ? 0.06 : -0.04,
-            index * 0.07 - 0.08,
-          ]}
-        >
-          <boxGeometry args={[0.55 + share * 1.2, 0.18 + share * 0.55, 22]} />
-          <meshPhysicalMaterial
-            color={macroColors[index]}
-            transparent
-            opacity={0.74}
-            transmission={0.18}
-            roughness={0.24}
-          />
-        </mesh>
-      ))}
-      <mesh position={[9, 5, -11]} rotation={[Math.PI / 2.6, 0.15, 0.35]}>
-        <planeGeometry args={[18, 11]} />
-        <meshPhysicalMaterial
-          color="#c9ff24"
+      <mesh geometry={geometry} scale={1.015}>
+        <meshBasicMaterial
+          color="#f0eee6"
           transparent
-          opacity={0.035 + macro.proteinRatio * 0.04}
-          transmission={0.8}
-          roughness={0.1}
-          side={2}
+          opacity={amount * 0.1}
+          side={BackSide}
         />
       </mesh>
     </group>
   );
 }
-function TimeSpiral({
+function FoodCellSubdivision({
+  record,
+  amount,
+}: {
+  record: DailyRecord;
+  amount: number;
+}) {
+  const cells = useMemo(() => {
+    const meal = [...record.meals].sort(
+        (a, b) => b.totalCalories - a.totalCalories,
+      )[0],
+      foods = getFoodDistribution(
+        meal ? { ...record, meals: [meal] } : record,
+      ).slice(0, 4),
+      total = Math.max(
+        1,
+        foods.reduce((sum, food) => sum + food.calories, 0),
+      );
+    let cursor = -Math.PI * 0.76;
+    return foods.map((food, index) => {
+      const span = (food.calories / total) * Math.PI * 2,
+        next = cursor + span,
+        geometry = createCellSurface(3.65, cursor, next, index + 1);
+      cursor = next;
+      return { food, geometry, share: food.calories / total };
+    });
+  }, [record]);
+  const base = useMemo(() => createLensSurface(3.72, 0.12, 112, 6, 2.4), []);
+  return (
+    <group
+      position={WORLD_ANCHORS.food}
+      visible={amount > 0.01}
+      rotation={[0, 0.08, -0.16]}
+      scale={0.92 + amount * 0.08}
+    >
+      <mesh geometry={base} position={[0, 0, -0.08]}>
+        <GlassMaterial opacity={amount * 0.12} />
+      </mesh>
+      {cells.map(({ food, geometry, share }, index) => (
+        <mesh
+          key={food.id}
+          geometry={geometry}
+          position={[0, 0, index * 0.018]}
+        >
+          <GlassMaterial
+            opacity={amount * (0.34 + share * 0.28)}
+            tint={foodTints[index]}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+function NutritionRibbons({
+  record,
+  amount,
+  flatten,
+}: {
+  record: DailyRecord;
+  amount: number;
+  flatten: number;
+}) {
+  const macro = getMacroEnergyRatio(record),
+    shares = [macro.proteinRatio, macro.carbsRatio, macro.fatRatio],
+    geometries = useMemo(() => {
+      const value = getMacroEnergyRatio(record);
+      return [value.proteinRatio, value.carbsRatio, value.fatRatio].map(
+        (share, index) => createRibbonSurface(0.45 + share * 2.8, index),
+      );
+    }, [record]);
+  return (
+    <group
+      position={WORLD_ANCHORS.nutrition}
+      visible={amount > 0.01}
+      scale={[1, 1, 1 - flatten * 0.84]}
+      rotation={[0, 0.08, -0.08]}
+    >
+      {shares.map((share, index) => (
+        <mesh
+          key={index}
+          geometry={geometries[index]}
+          position={[0, index * 0.2, 0]}
+        >
+          <meshPhysicalMaterial
+            color={macroColors[index]}
+            transparent
+            opacity={amount * (0.7 + share * 0.25)}
+            transmission={0.25}
+            thickness={0.65}
+            roughness={0.2}
+            clearcoat={0.4}
+            side={DoubleSide}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+function TimeForm({
   records,
   target,
+  amount,
 }: {
   records: DailyRecord[];
   target: number;
+  amount: number;
 }) {
+  const geometry = useMemo(() => createLensSurface(0.68, 0.12, 48, 4, 0.8), []),
+    month = getMonthlyRecords(records);
   return (
-    <group position={WORLD_ANCHORS.time}>
-      {getMonthlyRecords(records).map((record, index) => {
-        const t = index / 29,
-          a = t * Math.PI * 5,
-          r = 1.2 + t * 4.2,
-          ratio = record.totalCalories / Math.max(1, target);
+    <group position={WORLD_ANCHORS.time} visible={amount > 0.01}>
+      {month.map((record, index) => {
+        const t = index / Math.max(1, month.length - 1),
+          ratio = record.totalCalories / Math.max(1, target),
+          consistency = (record.consistencyScore ?? 0) / 100;
         return (
           <mesh
             key={record.date}
-            position={[Math.cos(a) * r, Math.sin(a) * r, -t * 13]}
-            rotation={[Math.PI / 2, a, 0]}
-            scale={0.22 + (1 - t) * 0.24}
+            geometry={geometry}
+            position={[t * 16 - 8, Math.sin(t * Math.PI) * 5.2, -t * 22]}
+            rotation={[0.08 + t * 0.35, -0.25 + t * 0.45, -0.1 + t * 0.18]}
+            scale={[
+              0.62 + (1 - t) * 0.5,
+              0.62 + (1 - t) * 0.5,
+              0.7 + Math.abs(ratio - 1) * 1.5,
+            ]}
           >
-            <cylinderGeometry args={[1, 1, 0.18 + Math.abs(ratio - 1), 28]} />
-            <meshPhysicalMaterial
-              color={ratio > 1 ? "#e76f51" : "#9fb3aa"}
-              transparent
-              opacity={0.22 + (record.consistencyScore ?? 70) / 150}
-              transmission={0.58}
-              roughness={0.2}
+            <GlassMaterial
+              opacity={amount * (0.16 + consistency * 0.38)}
+              tint={ratio > 1 ? "#d7c5bc" : "#d9dfd6"}
             />
           </mesh>
         );
@@ -320,7 +522,7 @@ function TimeSpiral({
   );
 }
 function DebugGeometry() {
-  if (!import.meta.env.DEV) return null;
+  if (!showCameraDebug()) return null;
   const cameraPoints = cameraShots.flatMap((shot, index) =>
       index
         ? [new Vector3(...shot.cameraTo)]
@@ -336,13 +538,7 @@ function DebugGeometry() {
       <Line points={cameraPoints} color="#00e5ff" lineWidth={2} />
       <Line points={targetPoints} color="#ff3bd4" lineWidth={2} />
       {Object.entries(WORLD_ANCHORS).map(([name, position]) => (
-        <group key={name} position={position}>
-          <mesh>
-            <sphereGeometry args={[0.18, 12, 12]} />
-            <meshBasicMaterial color="#c9ff24" />
-          </mesh>
-          <axesHelper args={[1.2]} />
-        </group>
+        <axesHelper key={name} args={[1.1]} position={position} />
       ))}
     </group>
   );
@@ -360,32 +556,41 @@ function World({
   target: NutritionTarget;
   onDebug?: (info: DebugInfo) => void;
 }) {
-  const ratio = record.totalCalories / Math.max(1, target.targetCalories);
+  const ratio = record.totalCalories / Math.max(1, target.targetCalories),
+    lens = 1 - smooth((progress - 0.22) / 0.07),
+    layers = visibilityPhase(progress, 0.2, 0.27, 0.48, 0.55),
+    lunch = visibilityPhase(progress, 0.4, 0.47, 0.6, 0.67),
+    cells = visibilityPhase(progress, 0.55, 0.62, 0.72, 0.79),
+    ribbons = visibilityPhase(progress, 0.68, 0.75, 0.85, 0.92),
+    time = smooth((progress - 0.83) / 0.12),
+    focus = smooth((progress - 0.4) / 0.12),
+    flatten = smooth((progress - 0.79) / 0.12);
   return (
     <>
       <CameraDirector progress={progress} onDebug={onDebug} />
-      <fog attach="fog" args={["#0e0e0c", 18, 115]} />
-      <ambientLight intensity={1.2} />
-      <directionalLight position={[4, 6, 6]} intensity={5} />
-      <pointLight position={[-4, 1, -4]} intensity={10} color="#7167d9" />
-      <group position={WORLD_ANCHORS.lens}>
-        <Lens ratio={ratio} />
-      </group>
-      <MealOrbit record={record} />
-      <LunchPortal record={record} />
-      <FoodCells record={record} />
-      <NutritionRibbons record={record} />
-      <TimeSpiral records={records} target={target.targetCalories} />
-      {!CAMERA_ONLY_DEBUG && (
-        <Sparkles
-          count={innerWidth < 800 ? 300 : 950}
-          scale={[40, 30, 110]}
-          size={0.55}
-          speed={0.04}
-          color={new Color("#d9d5c9")}
-          opacity={0.13}
-        />
-      )}
+      <fog attach="fog" args={["#0e0e0c", 20, 118]} />
+      <ambientLight intensity={0.32} />
+      <directionalLight
+        position={[8, 10, 12]}
+        intensity={4.8}
+        color="#fff5df"
+      />
+      <directionalLight position={[-8, 1, 6]} intensity={1.4} color="#d8d8d2" />
+      <directionalLight
+        position={[-5, 9, -10]}
+        intensity={3.2}
+        color="#d9e4e8"
+      />
+      <LiquidLens ratio={ratio} amount={lens} />
+      <MealLayers record={record} amount={layers} focus={focus} />
+      <LunchLayer record={record} amount={lunch} />
+      <FoodCellSubdivision record={record} amount={cells} />
+      <NutritionRibbons record={record} amount={ribbons} flatten={flatten} />
+      <TimeForm
+        records={records}
+        target={target.targetCalories}
+        amount={time}
+      />
       <DebugGeometry />
     </>
   );
@@ -393,7 +598,7 @@ function World({
 function StaticLens({ ratio }: { ratio: number }) {
   return (
     <div
-      className="static-lens"
+      className="static-lens liquid-static"
       style={{ "--fill": `${Math.min(100, ratio * 100)}%` } as CSSProperties}
     >
       <i />
@@ -402,12 +607,12 @@ function StaticLens({ ratio }: { ratio: number }) {
   );
 }
 function CameraDebugOverlay({ info }: { info?: DebugInfo }) {
-  if (!import.meta.env.DEV || !info) return null;
+  if (!showCameraDebug() || !info) return null;
   const xyz = (value: Vector3Tuple) =>
     value.map((n) => n.toFixed(2)).join(" / ");
   return (
     <output className="camera-debug">
-      <b>CAMERA ONLY · {info.shot}</b>
+      <b>CAMERA DEBUG · {info.shot}</b>
       <span>Progress: {info.progress.toFixed(3)}</span>
       <span>Camera: {xyz(info.position)}</span>
       <span>Target: {xyz(info.target)}</span>
@@ -431,7 +636,8 @@ export function ImmersiveScene({
 }) {
   const ratio = record.totalCalories / Math.max(1, target.targetCalories),
     mobile = typeof window !== "undefined" && window.innerWidth < 760,
-    [debugInfo, setDebugInfo] = useState<DebugInfo>();
+    [debugInfo, setDebugInfo] = useState<DebugInfo>(),
+    debug = showCameraDebug();
   if (mobile || reduced)
     return (
       <div className="immersive-canvas mobile-static" aria-hidden="true">
@@ -455,7 +661,7 @@ export function ImmersiveScene({
           record={record}
           records={records}
           target={target}
-          onDebug={import.meta.env.DEV ? setDebugInfo : undefined}
+          onDebug={debug ? setDebugInfo : undefined}
         />
       </Canvas>
       <CameraDebugOverlay info={debugInfo} />

@@ -1,4 +1,4 @@
-# CalorieLens 5.0 · Cinematic Data Space
+# CalorieLens 5.2 · Liquid Data Lens
 
 > 看见，你吃下的能量。
 
