@@ -85,3 +85,25 @@ html.guided-story{scroll-snap-type:y proximity;scroll-behavior:smooth}html.guide
 .still-life-label{display:flex;align-items:center;gap:8px;white-space:nowrap;padding:8px 11px;border:1px solid rgba(24,21,17,.22);background:rgba(243,238,229,.82);backdrop-filter:blur(8px);color:#181511;font:10px/1 Inter,"PingFang SC",sans-serif;letter-spacing:.08em;pointer-events:none;transition:opacity .2s}
 .still-life-label span{color:#5661ff}.still-life-label b{font-weight:650}
 .report-toast,.lens-injection{color:#181511;background:rgba(243,238,229,.9);border-color:rgba(24,21,17,.2)}
+
+/* Experimental branch — Chromatic Nutrition Terrain. */
+.immersive-home{background:#171310;color:#f2eee7}
+.immersive-canvas{background:#171310}
+.immersive-canvas canvas{filter:saturate(.92) contrast(1.08)}
+.immersive-canvas:after{background:radial-gradient(ellipse at 52% 44%,transparent 42%,rgba(3,2,2,.58) 100%)}
+.immersive-home .scene-opening h1{color:#f2eee7;mix-blend-mode:normal}
+.immersive-home .scene-opening h1 em{color:#5661ff}
+.immersive-home .scene-opening>a,.immersive-home .scene-kicker,.immersive-home .scene-copy p,.immersive-home .scene-data>span,.immersive-home .scene-data>div span,.immersive-home .scene-minimal-data,.immersive-home .balance-center>small,.immersive-home .week-summary span,.immersive-home .month-ending>p{color:#9b9388}
+.immersive-home .scene-copy h2,.immersive-home .scene-data>strong,.immersive-home .scene-minimal-data strong,.immersive-home .balance-center>strong,.immersive-home .balance-center>b,.immersive-home .week-summary strong,.immersive-home .week-summary b,.immersive-home .month-ending h2,.immersive-home .month-ending article strong{color:#f2eee7}
+.immersive-home .story-progress{color:#8c8377}
+.immersive-home .story-progress div{background:rgba(242,238,231,.17)}
+.immersive-home .story-progress b{color:#f2eee7}
+.immersive-home .scene-data>div,.immersive-home .food-labels article,.immersive-home .meal-labels article,.immersive-home .macro-labels article{border-color:rgba(242,238,231,.18)}
+.immersive-home .balance-center>a,.immersive-home .week-summary a,.immersive-home .month-ending>a{color:#fff;background:#5661ff}
+.immersive-home .month-ending>div{border-color:rgba(242,238,231,.18)}
+.terrain-spatial-label{display:grid;grid-template-columns:auto auto;gap:3px 9px;align-items:baseline;min-width:104px;padding:8px 10px;border-left:1px solid rgba(225,216,203,.56);background:linear-gradient(90deg,rgba(23,19,16,.62),transparent);color:#f0eae1;font:9px/1.1 Inter,"PingFang SC",sans-serif;letter-spacing:.09em;white-space:nowrap;pointer-events:none;transition:opacity .2s}
+.terrain-spatial-label span{color:#7d86ff}.terrain-spatial-label b{font-size:10px}.terrain-spatial-label small{grid-column:2;color:#928a80;font-size:8px}
+.immersive-home .home-meal-log{background:#f3eee5}
+.immersive-home .immersive-footer{background:#0d0b09}
+.report-toast,.lens-injection{color:#f2eee7;background:rgba(23,19,16,.88);border-color:rgba(242,238,231,.18)}
+@media(max-width:900px){.terrain-spatial-label{display:none}}

@@ -2,7 +2,7 @@ import { Canvas } from "@react-three/fiber";
 import type { CSSProperties } from "react";
 import type { DailyRecord, NutritionTarget } from "../../types";
 import { CameraDirector } from "./CameraDirector";
-import { MetabolicStillLife } from "./MetabolicStillLife";
+import { NutritionTerrain } from "./NutritionTerrain";
 import { getFreezeProgress } from "./dataLensMorph";
 
 function StaticLens({ ratio }: { ratio: number }) {
@@ -53,18 +53,19 @@ export function ImmersiveScene({
           powerPreference: "high-performance",
         }}
       >
-        <color attach="background" args={["#d8d0c4"]} />
-        <fog attach="fog" args={["#d8d0c4", 15, 36]} />
-        <ambientLight intensity={1.35} color="#fff6e7" />
-        <directionalLight position={[-5, 8, 4]} intensity={3.2} color="#fff4dc" castShadow shadow-mapSize={[1024, 1024]} />
-        <directionalLight position={[5, 3, -4]} intensity={1.7} color="#9ca8ff" />
-        <spotLight position={[0, 9, 1]} intensity={2.4} angle={0.55} penumbra={0.8} color="#ffffff" castShadow />
-        <mesh position={[0, -0.58, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <color attach="background" args={["#171310"]} />
+        <fog attach="fog" args={["#171310", 17, 39]} />
+        <ambientLight intensity={0.52} color="#b8ad9e" />
+        <directionalLight position={[-6, 8, 5]} intensity={4.1} color="#ffe4c1" castShadow shadow-mapSize={[1024, 1024]} />
+        <directionalLight position={[6, 2, -5]} intensity={3.2} color="#7789ff" />
+        <spotLight position={[0, 10, 2]} intensity={3.6} angle={0.48} penumbra={0.88} color="#fff8ed" castShadow />
+        <pointLight position={[-4, 1, 5]} intensity={1.4} color="#ff684e" />
+        <mesh position={[0, -1.72, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[36, 36]} />
-          <meshStandardMaterial color="#d8d0c4" roughness={0.92} />
+          <meshStandardMaterial color="#171310" roughness={0.9} />
         </mesh>
         <CameraDirector progress={resolvedProgress} />
-        <MetabolicStillLife progress={resolvedProgress} record={record} target={target} />
+        <NutritionTerrain progress={resolvedProgress} record={record} target={target} freezeTime={frozen !== undefined ? 2.4 : undefined} />
       </Canvas>
     </div>
   );

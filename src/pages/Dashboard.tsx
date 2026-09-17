@@ -28,12 +28,12 @@ const mealNames = {
   snack: "加餐",
 };
 const chapterNames = [
-  "薄膜",
-  "餐次深度",
-  "午餐聚焦",
-  "食物细胞",
-  "营养抽取",
-  "营养雕塑",
+  "地貌生成",
+  "今日能量",
+  "餐次山体",
+  "午餐地层",
+  "营养河流",
+  "流体雕塑",
   "能量平衡",
   "趋势入口",
 ];
@@ -79,6 +79,8 @@ export function Dashboard() {
   useLayoutEffect(() => {
     if (frozenProgress !== undefined) {
       setProgress(frozenProgress);
+      if (new URLSearchParams(window.location.search).get("capture") === "1")
+        return;
       const frame = requestAnimationFrame(() => {
         const distance =
           document.documentElement.scrollHeight - window.innerHeight;
@@ -156,9 +158,9 @@ export function Dashboard() {
         <div className="scene-copy left">
           <span>02 / 今天</span>
           <h2>
-            一只餐盘，
+            一天的能量，
             <br />
-            装下今天。
+            隆起为地貌。
           </h2>
         </div>
         <div className="scene-data right">
@@ -181,9 +183,9 @@ export function Dashboard() {
         <div className="scene-copy left">
           <span>03 / 一日餐次</span>
           <h2>
-            一天，
+            四次进食，
             <br />
-            在盘中排开。
+            成为四座山体。
           </h2>
         </div>
         <div className="scene-minimal-data right">
@@ -216,9 +218,9 @@ export function Dashboard() {
         <div className="scene-copy left">
           <span>05 / 营养素</span>
           <h2>
-            食物溶解成
+            营养沿地表
             <br />
-            三条营养流。
+            汇聚成河。
           </h2>
         </div>
         <div className="scene-minimal-data macro-minimal right">
@@ -245,9 +247,9 @@ export function Dashboard() {
         <div className="scene-copy right">
           <span>07 / 过去七天</span>
           <h2>
-            七只餐盘，
+            七天地貌，
             <br />
-            成为一段地貌。
+            连成一段时间。
           </h2>
         </div>
         <div className="week-summary left">
