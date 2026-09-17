@@ -29,16 +29,12 @@ const mealNames = {
 };
 const chapterNames = [
   "远景推进",
-  "贴近擦过",
-  "穿越透镜",
+  "透镜擦镜",
   "餐次揭示",
-  "环绕午餐",
-  "快速推进",
-  "进入食物",
-  "单元穿行",
-  "营养流带",
-  "升降俯拍",
-  "空间压平",
+  "餐次环绕",
+  "午餐锁定",
+  "午餐穿越",
+  "营养流飞行",
   "时间远拉",
 ];
 
@@ -74,7 +70,7 @@ export function Dashboard() {
   const week = getWeeklyRecords(records);
   const month = getMonthlyRecords(records);
   const deviation = getDeviationSummary(records, target.targetCalories);
-  const active = Math.min(11, Math.floor(progress * 12));
+  const active = Math.min(7, Math.floor(progress * 8));
   const weekAverage = Math.round(
     week.reduce((sum, r) => sum + r.totalCalories, 0) /
       Math.max(1, week.length),
@@ -125,7 +121,7 @@ export function Dashboard() {
         reduced={reduced}
       />
       <div className="story-progress">
-        <span>{String(active + 1).padStart(2, "0")} / 12</span>
+        <span>{String(active + 1).padStart(2, "0")} / 08</span>
         <div>
           <i style={{ height: `${stageProgress}%` }} />
         </div>
@@ -213,8 +209,7 @@ export function Dashboard() {
         <div className="scene-copy right">
           <span>04 / 食物</span>
           <h2>
-            {focusedMeal ? mealNames[focusedMeal.type] : "这一餐"}，<br />
-            继续解构。
+            午<br />餐
           </h2>
           <p>片段体积来自食物热量占本餐比例。面积不是装饰，而是热量贡献。</p>
         </div>
@@ -325,9 +320,9 @@ export function Dashboard() {
         <div className="month-ending">
           <span>08 / 三十天</span>
           <h2>
-            时间围成一圈，
+            一餐退入远方，
             <br />
-            习惯开始显形。
+            时间扩大为一个月。
           </h2>
           <div>
             <article>
@@ -347,8 +342,8 @@ export function Dashboard() {
             </article>
           </div>
           <p>
-            每一个透明 Lens
-            代表一天；填充映射摄入比例，厚度映射偏差，亮度映射一致性。
+            30 个 Day Lens
+            沿空间螺旋延伸；填充映射摄入比例，厚度映射偏差，亮度映射一致性。
           </p>
           <Link to="/trends">
             探索完整三十天 <ArrowUpRight />
