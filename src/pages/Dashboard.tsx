@@ -28,12 +28,12 @@ const mealNames = {
   snack: "加餐",
 };
 const chapterNames = [
-  "地貌生成",
-  "今日能量",
-  "餐次山体",
-  "午餐地层",
-  "营养河流",
-  "流体雕塑",
+  "液态铬",
+  "能量表面",
+  "结构线框",
+  "粒子拆解",
+  "玻璃重组",
+  "透明数据",
   "能量平衡",
   "趋势入口",
 ];
@@ -158,9 +158,9 @@ export function Dashboard() {
         <div className="scene-copy left">
           <span>02 / 今天</span>
           <h2>
-            一天的能量，
+            能量改变
             <br />
-            隆起为地貌。
+            同一个物体。
           </h2>
         </div>
         <div className="scene-data right">
@@ -183,9 +183,9 @@ export function Dashboard() {
         <div className="scene-copy left">
           <span>03 / 一日餐次</span>
           <h2>
-            四次进食，
+            表面退去，
             <br />
-            成为四座山体。
+            结构显现。
           </h2>
         </div>
         <div className="scene-minimal-data right">
@@ -218,9 +218,9 @@ export function Dashboard() {
         <div className="scene-copy left">
           <span>05 / 营养素</span>
           <h2>
-            营养沿地表
+            粒子重新聚合
             <br />
-            汇聚成河。
+            成为透明数据。
           </h2>
         </div>
         <div className="scene-minimal-data macro-minimal right">
