@@ -6,10 +6,10 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { CountUp } from "../components/CountUp";
 import { ImmersiveScene } from "../components/three/ImmersiveScene";
+import { getFreezeProgress } from "../components/three/dataLensMorph";
 import { consumeEnergyInjection } from "../data/store";
 import {
   getDeviationSummary,
-  getFoodDistribution,
   getMacroEnergyRatio,
   getMealDistribution,
   getMonthlyRecords,
@@ -28,14 +28,14 @@ const mealNames = {
   snack: "加餐",
 };
 const chapterNames = [
-  "远景推进",
-  "透镜擦镜",
-  "餐次揭示",
-  "餐次环绕",
-  "午餐锁定",
-  "午餐穿越",
-  "营养流飞行",
-  "时间远拉",
+  "薄膜",
+  "餐次深度",
+  "午餐聚焦",
+  "食物细胞",
+  "营养抽取",
+  "营养雕塑",
+  "能量平衡",
+  "趋势入口",
 ];
 
 export function Dashboard() {
@@ -55,17 +55,14 @@ export function Dashboard() {
     records.find((record) => record.date === todayKey()) ??
     records[records.length - 1] ??
     empty;
-  const [progress, setProgress] = useState(0);
+  const frozenProgress = getFreezeProgress();
+  const [progress, setProgress] = useState(frozenProgress ?? 0);
   const [injection, setInjection] = useState(false);
   const remaining = target.targetCalories - today.totalCalories;
   const meals = getMealDistribution(today).filter((meal) => meal.calories > 0);
-  const foods = getFoodDistribution(today);
-  const focusedMeal = [...today.meals].sort(
-    (a, b) => b.totalCalories - a.totalCalories,
-  )[0];
-  const focusedFoods = getFoodDistribution(
-    focusedMeal ? { ...today, meals: [focusedMeal] } : today,
-  );
+  const focusedMeal =
+    today.meals.find((meal) => meal.type === "lunch") ??
+    [...today.meals].sort((a, b) => b.totalCalories - a.totalCalories)[0];
   const macro = getMacroEnergyRatio(today);
   const week = getWeeklyRecords(records);
   const month = getMonthlyRecords(records);
@@ -79,8 +76,16 @@ export function Dashboard() {
     month.reduce((sum, r) => sum + (r.consistencyScore ?? 0), 0) /
       Math.max(1, month.length),
   );
-  void foods;
   useLayoutEffect(() => {
+    if (frozenProgress !== undefined) {
+      setProgress(frozenProgress);
+      const frame = requestAnimationFrame(() => {
+        const distance =
+          document.documentElement.scrollHeight - window.innerHeight;
+        window.scrollTo(0, distance * frozenProgress);
+      });
+      return () => cancelAnimationFrame(frame);
+    }
     if (!root.current || reduced) {
       setProgress(0);
       return;
@@ -97,7 +102,7 @@ export function Dashboard() {
       onUpdate: (self) => setProgress(self.progress),
     });
     return () => trigger.kill();
-  }, [reduced]);
+  }, [frozenProgress, reduced]);
   useEffect(() => {
     if (consumeEnergyInjection() && !reduced) {
       setInjection(true);
@@ -116,7 +121,6 @@ export function Dashboard() {
       <ImmersiveScene
         progress={progress}
         record={today}
-        records={records}
         target={target}
         reduced={reduced}
       />
@@ -137,7 +141,6 @@ export function Dashboard() {
           <br />
           <em>能量。</em>
         </h1>
-        <p>一只由真实饮食数据生成的能量餐盘。</p>
         <a href="#scene-today">
           <ArrowDown />
           滚动进入数据
@@ -157,9 +160,6 @@ export function Dashboard() {
             <br />
             装下今天。
           </h2>
-          <p>
-            透镜内部填充来自「今日摄入 ÷ 每日目标」，倾斜后可以看见偏差的厚度。
-          </p>
         </div>
         <div className="scene-data right">
           <span>今日已摄入</span>
@@ -185,24 +185,11 @@ export function Dashboard() {
             <br />
             沿深度展开。
           </h2>
-          <p>每层只在当天存在对应餐次时生成；厚度按该餐占全天热量比例映射。</p>
         </div>
-        <div className="meal-labels right">
-          {meals.map((meal) => (
-            <article key={meal.type}>
-              <span>{mealNames[meal.type]}</span>
-              <strong>
-                {Math.round(meal.calories)}
-                <small> 千卡</small>
-              </strong>
-              <i>
-                {Math.round(
-                  (meal.calories / Math.max(1, today.totalCalories)) * 100,
-                )}
-                %
-              </i>
-            </article>
-          ))}
+        <div className="scene-minimal-data right">
+          <span>{focusedMeal ? mealNames[focusedMeal.type] : "午餐"}</span>
+          <strong>{Math.round(focusedMeal?.totalCalories ?? 0)} 千卡</strong>
+          <small>{meals.length} 个餐次深度</small>
         </div>
       </section>
       <section className="story-scene scene-food">
@@ -211,26 +198,18 @@ export function Dashboard() {
           <h2>
             午<br />餐
           </h2>
-          <p>片段体积来自食物热量占本餐比例。面积不是装饰，而是热量贡献。</p>
-        </div>
-        <div className="food-labels left">
-          {focusedFoods.slice(0, 6).map((food) => (
-            <article key={food.id}>
-              <span>{food.name}</span>
-              <strong>{Math.round(food.calories)} 千卡</strong>
-              <i>
-                {Math.round(
-                  (food.calories /
-                    Math.max(
-                      1,
-                      focusedMeal?.totalCalories ?? today.totalCalories,
-                    )) *
-                    100,
-                )}
-                %
-              </i>
-            </article>
-          ))}
+          <strong className="story-primary">
+            {Math.round(focusedMeal?.totalCalories ?? 0)} 千卡
+          </strong>
+          <small>
+            {focusedMeal?.timestamp.slice(11, 16) ?? "12:31"} ·{" "}
+            {Math.round(
+              ((focusedMeal?.totalCalories ?? 0) /
+                Math.max(1, today.totalCalories)) *
+                100,
+            )}
+            %
+          </small>
         </div>
       </section>
       <section className="story-scene scene-macros">
@@ -241,33 +220,11 @@ export function Dashboard() {
             <br />
             三条营养流。
           </h2>
-          <p>宽度使用供能比例，而不是克数比例：蛋白质与碳水 × 4，脂肪 × 9。</p>
         </div>
-        <div className="macro-labels right">
-          <article>
-            <i className="protein" />
-            <span>蛋白质</span>
-            <strong>{Math.round(macro.proteinRatio * 100)}%</strong>
-            <small>
-              {Math.round(today.protein)} / {target.proteinTarget} 克
-            </small>
-          </article>
-          <article>
-            <i className="carbs" />
-            <span>碳水</span>
-            <strong>{Math.round(macro.carbsRatio * 100)}%</strong>
-            <small>
-              {Math.round(today.carbs)} / {target.carbTarget} 克
-            </small>
-          </article>
-          <article>
-            <i className="fat" />
-            <span>脂肪</span>
-            <strong>{Math.round(macro.fatRatio * 100)}%</strong>
-            <small>
-              {Math.round(today.fat)} / {target.fatTarget} 克
-            </small>
-          </article>
+        <div className="scene-minimal-data macro-minimal right">
+          <strong>蛋白质 {Math.round(macro.proteinRatio * 100)}%</strong>
+          <span>碳水 {Math.round(macro.carbsRatio * 100)}%</span>
+          <small>脂肪 {Math.round(macro.fatRatio * 100)}%</small>
         </div>
       </section>
       <section className="story-scene scene-balance">
@@ -278,11 +235,6 @@ export function Dashboard() {
           <i />
           <b>{target.targetCalories}</b>
           <small>每日目标 · 千卡</small>
-          <p>
-            {remaining >= 0
-              ? `距离目标还有 ${Math.round(remaining)} 千卡。`
-              : `比目标高出 ${Math.abs(Math.round(remaining))} 千卡。`}
-          </p>
           <Link to="/record">
             <Plus />
             记录这一餐
@@ -297,7 +249,6 @@ export function Dashboard() {
             <br />
             成为一段地貌。
           </h2>
-          <p>圆盘高度与每日偏差相关，亮度由一致性生成。</p>
         </div>
         <div className="week-summary left">
           <strong>{weekAverage}</strong>
@@ -341,10 +292,6 @@ export function Dashboard() {
               <span>平均偏差 · 千卡</span>
             </article>
           </div>
-          <p>
-            30 个 Day Lens
-            沿空间螺旋延伸；填充映射摄入比例，厚度映射偏差，亮度映射一致性。
-          </p>
           <Link to="/trends">
             探索完整三十天 <ArrowUpRight />
           </Link>

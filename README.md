@@ -12,38 +12,39 @@ CalorieLens 是面向大学“数据可视化”课程的个人饮食能量可�
 - 趋势：“数据观测室”提供 10 组统计模块与跨图日期联动。
 - AI：图片扫描、检测框、置信度、份量校正；结果与手动录入统一为 `FoodItem`。
 
-## Cinematic Data Space
+## DataLens True Morph
 
-`cameraTimeline.ts` 分别建立 `cameraPositionCurve` 和 `cameraTargetCurve` 两条 Catmull–Rom 曲线，并对 position、target 与 35°–48° FOV 平滑插值。12 个镜头涵盖 Dolly In、Close Pass、Lens Fly-through、Orbit、Dolly、Food Cell Fly-through、Ribbon 穿行、Crane/Tilt、3D→2D 压平与 Extreme Pull Out。
+首页从开始到营养流成形始终只渲染一个 `DataLens` Mesh。它使用固定的 128×128 顶点拓扑、固定 UV 和固定索引；滚动只改变 Shader uniforms，不按阶段挂载或淡入另一个核心对象。
 
-三维对象不是装饰：餐次角度来自时间，尺度来自热量；每日透镜的填充来自摄入/目标，厚度来自偏差，清晰度来自一致性。最终 30 个 Day Lens 沿三维时间螺旋退向远方。
+| 连续状态         | 同一表面的数据映射                                            |
+| ---------------- | ------------------------------------------------------------- |
+| Membrane         | 不规则薄膜轮廓与珍珠 / 镀铬混合材质                           |
+| Meal Depth       | 顶点按餐次分组，Z 方向厚度来自餐次热量占比                    |
+| Lunch Focus      | 午餐顶点原地展开，其他餐次顶点后移并降低亮度                  |
+| Food Cells       | 校准后的 Power Diagram；面积近似食物热量占本餐比例            |
+| Macro Extraction | 原 Food Cell 顶点延迟拉向三个 attractor，过渡中保持膜与流相连 |
+| Macro Sculpture  | 流宽由蛋白质×4、碳水×4、脂肪×9 的供能比例控制                 |
 
-| 空间对象 | 视觉编码 |
-| --- | --- |
-| Calorie Lens | 填充 = 今日摄入 / 目标 |
-| Meal Orbit | 角度 = 餐次分钟 / 1440；大小 = 餐次热量占比 |
-| Food Cells | 体积 = 食物在本餐的热量贡献 |
-| Nutrition Ribbons | 宽度 = 蛋白质×4、碳水×4、脂肪×9 后的供能占比 |
-| Time Spiral | 曲线位置 = 日期；厚度 = 偏差；透明度 = 一致性 |
+镜头在本轮保持稳定，只做轻微 Dolly。开发模式可直接打开 `?freeze=0.1`、`?freeze=0.3`、`?freeze=0.5`、`?freeze=0.7`、`?freeze=0.82` 检查五个关键静帧；`freeze` 和 `cameraDebug` 在 production 均不生效。
 
-首页只挂载一个 Canvas，DPR 上限 1.65。移动端和 `prefers-reduced-motion` 使用静态数据透镜；所有 3D 信息均有 DOM 等价文本。
+首页只挂载一个 Canvas，DPR 上限 1.65。移动端和 `prefers-reduced-motion` 使用静态数据透镜；所有必要数值均有 DOM 等价文本。
 
 ## 数据观测室
 
-| 图形 | 回答的问题 | 编码 |
-| --- | --- | --- |
-| Calorie Budget Strip | 今天还能吃多少？ | 长度 = 当前摄入；标记 = 目标 |
-| Cumulative Intake | 热量如何逐餐累积？ | X = 时间；Y = 累计千卡 |
-| 24H Rhythm | 今天吃得早还是晚？ | 角度 = 时间；圆面积 = 餐次热量 |
-| Macro Bullet | 与目标和七日范围相差多少？ | 条 = 今天；带 = 七日范围；刻度 = 目标 |
-| Macro Energy Strip | 能量由什么组成？ | 宽度 = 4/4/9 换算后的供能比例 |
-| Food Scatter | 食物密度分布如何？ | X = kcal/100g；Y = protein/100g；面积 = 克重 |
-| Food Treemap | 热量主要来自哪些食物？ | 面积 = 实际千卡贡献 |
-| Weekly Target Band | 哪天偏离目标？ | 线 = 实际；带 = 目标 ±10% |
-| Meal Stack | 异常由哪一餐造成？ | 堆叠高度 = 各餐千卡 |
-| Monthly Deviation | 月度稳定性如何？ | 发散方向/长度 = 实际 − 目标 |
-| 7×3 Heatmap | 哪天宏量营养偏离？ | 色深 = actual / target |
-| Meal Box Plot | 哪一餐最容易吃多？ | Min/Q1/Median/Q3/Max |
+| 图形                 | 回答的问题                 | 编码                                         |
+| -------------------- | -------------------------- | -------------------------------------------- |
+| Calorie Budget Strip | 今天还能吃多少？           | 长度 = 当前摄入；标记 = 目标                 |
+| Cumulative Intake    | 热量如何逐餐累积？         | X = 时间；Y = 累计千卡                       |
+| 24H Rhythm           | 今天吃得早还是晚？         | 角度 = 时间；圆面积 = 餐次热量               |
+| Macro Bullet         | 与目标和七日范围相差多少？ | 条 = 今天；带 = 七日范围；刻度 = 目标        |
+| Macro Energy Strip   | 能量由什么组成？           | 宽度 = 4/4/9 换算后的供能比例                |
+| Food Scatter         | 食物密度分布如何？         | X = kcal/100g；Y = protein/100g；面积 = 克重 |
+| Food Treemap         | 热量主要来自哪些食物？     | 面积 = 实际千卡贡献                          |
+| Weekly Target Band   | 哪天偏离目标？             | 线 = 实际；带 = 目标 ±10%                    |
+| Meal Stack           | 异常由哪一餐造成？         | 堆叠高度 = 各餐千卡                          |
+| Monthly Deviation    | 月度稳定性如何？           | 发散方向/长度 = 实际 − 目标                  |
+| 7×3 Heatmap          | 哪天宏量营养偏离？         | 色深 = actual / target                       |
+| Meal Box Plot        | 哪一餐最容易吃多？         | Min/Q1/Median/Q3/Max                         |
 
 点击七日趋势或日期导航会更新全局 `selectedDate`，节律、食物图、Treemap、目标轨和详情同步重算。所有图形消费 `src/data/selectors.ts` 的 processed data，不在图表中硬编码业务聚合。
 
