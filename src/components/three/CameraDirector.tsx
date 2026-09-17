@@ -12,19 +12,25 @@ export function CameraDirector({ progress }: { progress: number }) {
   const { camera } = useThree();
   const matrix = useMemo(() => new Matrix4(), []);
   const destination = useMemo(() => new Vector3(), []);
-  const target = useMemo(() => new Vector3(1.05, 0.05, 0), []);
+  const target = useMemo(() => new Vector3(0.65, 0.15, 0), []);
   const rotation = useMemo(() => new Quaternion(), []);
   const up = useMemo(() => new Vector3(0, 1, 0), []);
 
   useFrame(() => {
-    const dolly = MathUtils.smoothstep(Math.min(progress, 0.86), 0, 0.86);
-    destination.set(0.9, 1.35, MathUtils.lerp(10.7, 9.75, dolly));
+    const orbit = MathUtils.lerp(-0.22, 0.34, MathUtils.smoothstep(progress, 0.08, 0.82));
+    const pullback = MathUtils.smoothstep(progress, 0.72, 0.96);
+    const radius = MathUtils.lerp(9.2, 10.4, pullback);
+    destination.set(
+      0.65 + Math.sin(orbit) * radius,
+      MathUtils.lerp(4.35, 5.25, pullback),
+      Math.cos(orbit) * radius,
+    );
     camera.position.lerp(destination, 0.14);
     matrix.lookAt(camera.position, target, up);
     rotation.setFromRotationMatrix(matrix);
     camera.quaternion.slerp(rotation, 0.16);
     const perspective = camera as PerspectiveCamera;
-    perspective.fov = MathUtils.lerp(perspective.fov, 38, 0.12);
+    perspective.fov = MathUtils.lerp(perspective.fov, 35, 0.12);
     perspective.updateProjectionMatrix();
   });
   return null;

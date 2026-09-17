@@ -156,7 +156,7 @@ export function Dashboard() {
         <div className="scene-copy left">
           <span>02 / 今天</span>
           <h2>
-            一块标本，
+            一只餐盘，
             <br />
             装下今天。
           </h2>
@@ -183,13 +183,13 @@ export function Dashboard() {
           <h2>
             一天，
             <br />
-            在表面起伏。
+            在盘中排开。
           </h2>
         </div>
         <div className="scene-minimal-data right">
           <span>{focusedMeal ? mealNames[focusedMeal.type] : "午餐"}</span>
           <strong>{Math.round(focusedMeal?.totalCalories ?? 0)} 千卡</strong>
-          <small>{meals.length} 片餐次台地</small>
+          <small>{meals.length} 个真实餐次</small>
         </div>
       </section>
       <section className="story-scene scene-food">

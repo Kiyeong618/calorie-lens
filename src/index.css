@@ -63,3 +63,25 @@ html.guided-story{scroll-snap-type:y proximity;scroll-behavior:smooth}html.guide
 .immersive-home .scene-data>strong{font-size:clamp(82px,11vw,168px)}
 .immersive-home .scene-food .scene-copy h2{font-size:clamp(112px,17vw,238px)}
 .immersive-home .month-ending h2{font-size:clamp(48px,6.5vw,88px)}
+
+/* Metabolic Still Life — warm gallery art direction. */
+.immersive-home{background:#d8d0c4;color:#181511}
+.immersive-canvas{background:#d8d0c4}
+.immersive-canvas canvas{filter:saturate(.94) contrast(1.025)}
+.immersive-canvas:after{background:radial-gradient(ellipse at 64% 42%,transparent 38%,rgba(70,55,38,.12) 100%)}
+.immersive-home .scene-opening h1{color:#181511;mix-blend-mode:normal;text-shadow:none}
+.immersive-home .scene-opening h1 em{color:#5661ff;-webkit-text-stroke:0}
+.immersive-home .scene-opening>a,.immersive-home .scene-kicker,.immersive-home .scene-copy p,.immersive-home .scene-data>span,.immersive-home .scene-data>div span,.immersive-home .scene-minimal-data,.immersive-home .balance-center>small,.immersive-home .week-summary span,.immersive-home .month-ending>p{color:#625b51}
+.immersive-home .scene-copy h2,.immersive-home .scene-data>strong,.immersive-home .scene-minimal-data strong,.immersive-home .balance-center>strong,.immersive-home .balance-center>b,.immersive-home .week-summary strong,.immersive-home .week-summary b,.immersive-home .month-ending h2,.immersive-home .month-ending article strong{color:#181511}
+.immersive-home .story-progress{color:#6f665a}
+.immersive-home .story-progress div{background:rgba(24,21,17,.2)}
+.immersive-home .story-progress b{color:#181511}
+.immersive-home .scene-copy>span,.immersive-home .balance-center>span,.immersive-home .month-ending>span{color:#5661ff}
+.immersive-home .scene-data>div,.immersive-home .food-labels article,.immersive-home .meal-labels article,.immersive-home .macro-labels article{border-color:rgba(24,21,17,.22)}
+.immersive-home .balance-center>a,.immersive-home .week-summary a,.immersive-home .month-ending>a{color:#fff;background:#181511}
+.immersive-home .month-ending>div{border-color:rgba(24,21,17,.22)}
+.immersive-home .home-meal-log{background:#f3eee5}
+.immersive-home .immersive-footer{background:#181511}
+.still-life-label{display:flex;align-items:center;gap:8px;white-space:nowrap;padding:8px 11px;border:1px solid rgba(24,21,17,.22);background:rgba(243,238,229,.82);backdrop-filter:blur(8px);color:#181511;font:10px/1 Inter,"PingFang SC",sans-serif;letter-spacing:.08em;pointer-events:none;transition:opacity .2s}
+.still-life-label span{color:#5661ff}.still-life-label b{font-weight:650}
+.report-toast,.lens-injection{color:#181511;background:rgba(243,238,229,.9);border-color:rgba(24,21,17,.2)}
