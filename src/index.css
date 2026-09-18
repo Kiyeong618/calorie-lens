@@ -165,3 +165,24 @@ html.guided-story{scroll-snap-type:y proximity;scroll-behavior:smooth}html.guide
   .immersive-home .week-summary{grid-template-columns:1fr auto;gap:8px 14px}
   .immersive-home .week-summary strong{font-size:58px}
 }
+
+/* Body page typography — large editorial type with safe Chinese line boxes. */
+.body-page .body-hero{grid-template-columns:minmax(180px,.58fr) minmax(0,1.42fr);column-gap:clamp(36px,5vw,96px)}
+.body-page .body-hero h1{width:max-content;max-width:100%;font-size:clamp(58px,5.5vw,92px);line-height:1.08;letter-spacing:-.045em;white-space:nowrap;word-break:keep-all;overflow-wrap:normal;text-wrap:initial}
+.body-page .body-hero>span{max-width:46ch;font-size:14px;line-height:1.85;margin-top:30px}
+.body-page .body-form-head h2,.body-page .journey-head h2{font-size:clamp(34px,3.2vw,50px);line-height:1.12;letter-spacing:-.035em;text-wrap:balance;word-break:normal}
+.body-page .formula-lab>header h2{font-size:clamp(44px,5vw,76px);line-height:1.08;letter-spacing:-.04em}
+
+@media(max-width:1280px) and (min-width:901px){
+  .body-page .body-hero{grid-template-columns:minmax(150px,.45fr) minmax(0,1.55fr);column-gap:36px}
+  .body-page .body-hero h1{font-size:clamp(54px,5.7vw,72px)}
+  .body-page .body-form-head h2,.body-page .journey-head h2{font-size:clamp(32px,3.4vw,44px)}
+}
+
+@media(max-width:900px){
+  .body-page .body-hero{grid-template-columns:1fr;gap:20px;padding:7vh 22px 6vh}
+  .body-page .body-hero h1{width:auto;font-size:clamp(46px,12vw,68px);line-height:1.1;white-space:normal;text-wrap:balance}
+  .body-page .body-hero>span{grid-column:1;margin-top:6px;font-size:13px}
+  .body-page .body-form-head h2,.body-page .journey-head h2{font-size:clamp(32px,9vw,44px);line-height:1.14}
+  .body-page .formula-lab>header h2{font-size:clamp(38px,10vw,54px);line-height:1.12}
+}
